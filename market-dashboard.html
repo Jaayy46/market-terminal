@@ -2163,6 +2163,478 @@ async function submitOrder(){
 }
 
 // ═══════════════════════════════════════════════════════════════════
+//  TIEFENANALYSE — MULTI-FAKTOR ENGINE
+// ═══════════════════════════════════════════════════════════════════
+
+// ── Math helpers ────────────────────────────────────────────────────
+function calcMA(closes, period){
+  return closes.map((_,i)=>{
+    if(i<period-1) return null;
+    const sl=closes.slice(i-period+1,i+1).filter(x=>x!=null);
+    return sl.length===period?sl.reduce((a,b)=>a+b,0)/period:null;
+  });
+}
+function calcEMA(arr, period){
+  const k=2/(period+1); let ema=null; const out=[];
+  for(const v of arr){
+    if(v==null){out.push(null);continue;}
+    ema=ema==null?v:v*k+ema*(1-k); out.push(ema);
+  }
+  return out;
+}
+function calcRSI(closes, period=14){
+  const out=[]; let ag=0,al=0;
+  for(let i=0;i<closes.length;i++){
+    if(i===0){out.push(null);continue;}
+    const d=closes[i]-closes[i-1],g=d>0?d:0,l=d<0?-d:0;
+    if(i<period){ag+=g/period;al+=l/period;out.push(null);}
+    else{
+      ag=(ag*(period-1)+g)/period; al=(al*(period-1)+l)/period;
+      const rs=al===0?100:ag/al; out.push(100-100/(1+rs));
+    }
+  }
+  return out;
+}
+function calcMACD(closes){
+  const e12=calcEMA(closes,12),e26=calcEMA(closes,26);
+  const macd=e12.map((v,i)=>v==null||e26[i]==null?null:v-e26[i]);
+  const sigArr=calcEMA(macd.filter(x=>x!=null),9);
+  const signal=new Array(macd.length).fill(null);
+  let si=0; macd.forEach((v,i)=>{if(v!=null)signal[i]=sigArr[si++]||null;});
+  return {macd,signal};
+}
+
+// ── Fetch extended 1Y daily history ─────────────────────────────────
+async function fetchHistory(sym, range='1y'){
+  const key=sym+range;
+  if(S.history[key]&&Date.now()-S.history[key]._t<300000) return S.history[key].data;
+  const to = n=>AbortSignal.timeout?{signal:AbortSignal.timeout(n)}:{};
+  const u1=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=${range}`;
+  const u2=`https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=${range}`;
+  let data=null;
+  try{const r=await fetch(u1,to(6000));if(r.ok)data=await r.json();}catch{}
+  if(!data){try{const r=await fetch(u2,to(6000));if(r.ok)data=await r.json();}catch{}}
+  if(!data){try{const r=await fetch(`https://corsproxy.io/?${encodeURIComponent(u1)}`,to(10000));if(r.ok)data=await r.json();}catch{}}
+  if(!data){try{const r=await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(u1)}`,to(12000));if(r.ok){const d=await r.json();data=JSON.parse(d.contents);}}catch{}}
+  const res=data?.chart?.result?.[0];
+  if(!res) return null;
+  const ts=res.timestamps||[];
+  const q=res.indicators?.quote?.[0]||{};
+  const bars=ts.map((t,i)=>({t:t*1000,o:q.open?.[i],h:q.high?.[i],l:q.low?.[i],c:q.close?.[i],v:q.volume?.[i]})).filter(b=>b.c!=null);
+  S.history[key]={data:bars,_t:Date.now()};
+  return bars;
+}
+
+// ── Scoring: Technical (40%) ─────────────────────────────────────────
+function scoreTechnical(ticker){
+  const q=S.quotes[ticker];
+  const bars=S.history[ticker+'1y']?.data||[];
+  const closes=bars.map(b=>b.c);
+  const d={};let score=0;
+  // RSI
+  const rsiArr=calcRSI(closes);
+  const rsi=rsiArr.filter(x=>x!=null).at(-1);
+  d.rsi=rsi!=null?+rsi.toFixed(1):null;
+  if(rsi!=null){
+    if(rsi<30)      score+=28;
+    else if(rsi<45) score+=20;
+    else if(rsi<55) score+=12;
+    else if(rsi<70) score+=5;
+  }
+  // Moving averages
+  const ma50=calcMA(closes,50).filter(x=>x!=null).at(-1);
+  const ma200=calcMA(closes,200).filter(x=>x!=null).at(-1);
+  const price=q?.price;
+  d.ma50=ma50!=null?+ma50.toFixed(2):null;
+  d.ma200=ma200!=null?+ma200.toFixed(2):null;
+  d.goldenCross=ma50&&ma200?ma50>ma200:null;
+  if(price&&ma50&&ma200){
+    if(price>ma50&&ma50>ma200) score+=30;
+    else if(price>ma200)       score+=18;
+    else if(price>ma50)        score+=10;
+  }
+  // 52W position (lower = more upside potential)
+  const p52v=pos52(q);
+  d.pos52=p52v!=null?+p52v.toFixed(1):null;
+  if(p52v!=null){
+    if(p52v<=20)      score+=25;
+    else if(p52v<=35) score+=18;
+    else if(p52v<=55) score+=10;
+    else if(p52v<=70) score+=4;
+  }
+  // Momentum
+  const m1=closes.length>=22?((closes.at(-1)-closes.at(-22))/closes.at(-22))*100:null;
+  const m3=closes.length>=63?((closes.at(-1)-closes.at(-63))/closes.at(-63))*100:null;
+  d.mom1m=m1!=null?+m1.toFixed(2):null;
+  d.mom3m=m3!=null?+m3.toFixed(2):null;
+  if(m1>3)score+=10;else if(m1>0)score+=5;
+  if(m3>8)score+=7;else if(m3>0)score+=3;
+  // Volume relative to 20d avg
+  if(bars.length>=20){
+    const lastV=bars.at(-1).v||0;
+    const avgV=bars.slice(-20).reduce((a,b)=>a+(b.v||0),0)/20;
+    d.volRatio=avgV>0?+(lastV/avgV).toFixed(2):null;
+    if(lastV>avgV*1.2)score+=5;
+  }
+  return {score:Math.min(100,score),details:d};
+}
+
+// ── Scoring: Macro (30%) ─────────────────────────────────────────────
+function scoreMacro(){
+  const vix=S.quotes['^VIX']?.price;
+  const tnx=S.quotes['^TNX']?.price;
+  const goldChg=S.quotes['GC=F']?.changePct;
+  const dxy=S.quotes['DX-Y.NYB']?.price;
+  const sp=S.quotes['^GSPC'];
+  let score=0; const d={};
+  // VIX — fear gauge
+  d.vix=vix!=null?+vix.toFixed(1):null;
+  if(vix!=null){
+    if(vix<15)      score+=30;
+    else if(vix<20) score+=22;
+    else if(vix<25) score+=12;
+    else if(vix<30) score+=4;
+  }
+  // 10Y yield — rate environment
+  d.tnx=tnx!=null?+tnx.toFixed(2):null;
+  if(tnx!=null){
+    if(tnx<3)        score+=28;
+    else if(tnx<3.5) score+=22;
+    else if(tnx<4.5) score+=13;
+    else if(tnx<5)   score+=5;
+  }
+  // Gold — risk-off indicator (falling gold = equities bullish)
+  d.goldChg=goldChg!=null?+goldChg.toFixed(2):null;
+  if(goldChg!=null){
+    if(goldChg<-1)   score+=20;
+    else if(goldChg<0)score+=14;
+    else if(goldChg<1)score+=8;
+    else if(goldChg<2)score+=2;
+  }
+  // DXY — strong dollar is headwind for global earners
+  d.dxy=dxy!=null?+dxy.toFixed(1):null;
+  if(dxy!=null){
+    if(dxy<98)       score+=15;
+    else if(dxy<102) score+=10;
+    else if(dxy<106) score+=5;
+  }
+  // S&P 500 daily momentum as market tide
+  if(sp?.changePct>0.5)     score+=7;
+  else if(sp?.changePct>0)  score+=4;
+  else if(sp?.changePct>-1) score+=2;
+  return {score:Math.min(100,score),details:d};
+}
+
+// ── Scoring: News Sentiment (20%) ────────────────────────────────────
+const POS_WORDS=['bullish','surge','rally','beat','record','growth','profit','upgrade','outperform','strong','exceed','breakout','rebound','recovery','gains','soar','rise','positive'];
+const NEG_WORDS=['bearish','crash','plunge','miss','loss','downgrade','underperform','weak','decline','drop','fear','warning','layoff','cut','recession','default','selloff','collapse'];
+
+function scoreSentiment(ticker){
+  const kws=TICKER_KW[ticker]||[ticker.toLowerCase().replace(/-usd$/,'')];
+  const allNews=S.news.slice(0,60);
+  const relevant=allNews.filter(n=>n.tickers.includes(ticker)||kws.some(k=>n.title.toLowerCase().includes(k)));
+  let pos=0,neg=0; const found=[];
+  const scan=title=>{
+    const t=title.toLowerCase();
+    POS_WORDS.forEach(w=>{if(t.includes(w)){pos++;if(!found.find(f=>f.w===w))found.push({w,pos:true});}});
+    NEG_WORDS.forEach(w=>{if(t.includes(w)){neg++;if(!found.find(f=>f.w===w))found.push({w,pos:false});}});
+  };
+  relevant.forEach(n=>scan(n.title));
+  // Also scan general market news with half weight
+  allNews.filter(n=>!relevant.includes(n)).forEach(n=>{
+    const t=n.title.toLowerCase();
+    POS_WORDS.forEach(w=>{if(t.includes(w))pos+=0.5;});
+    NEG_WORDS.forEach(w=>{if(t.includes(w))neg+=0.5;});
+  });
+  const total=pos+neg;
+  const net=total>0?(pos-neg)/total:0; // -1 to +1
+  const score=Math.round(Math.max(0,Math.min(100,50+net*45)));
+  return {score,details:{relevant:relevant.length,positive:Math.round(pos),negative:Math.round(neg),words:found.slice(0,12)}};
+}
+
+// ── Scoring: Momentum (10%) ──────────────────────────────────────────
+function scoreMomentum(ticker){
+  const bars=S.history[ticker+'1y']?.data||[];
+  const c=bars.map(b=>b.c);
+  let score=0; const d={};
+  const ret=n=>c.length>n?((c.at(-1)-c.at(-n))/c.at(-n))*100:null;
+  d.w1=ret(5)!=null?+ret(5).toFixed(2):null;
+  d.m1=ret(22)!=null?+ret(22).toFixed(2):null;
+  d.m3=ret(63)!=null?+ret(63).toFixed(2):null;
+  d.m6=ret(126)!=null?+ret(126).toFixed(2):null;
+  if(d.w1>2)score+=15;else if(d.w1>0)score+=7;
+  if(d.m1>5)score+=25;else if(d.m1>2)score+=15;else if(d.m1>0)score+=8;
+  if(d.m3>10)score+=30;else if(d.m3>5)score+=20;else if(d.m3>0)score+=10;
+  if(d.m6>15)score+=25;else if(d.m6>5)score+=15;else if(d.m6>0)score+=8;
+  // Penalize strong negative trend
+  if(d.m3!=null&&d.m3<-10)score=Math.max(0,score-20);
+  if(d.m1!=null&&d.m1<-5) score=Math.max(0,score-10);
+  return {score:Math.min(100,score),details:d};
+}
+
+// ── Composite ────────────────────────────────────────────────────────
+const VERDICTS=[
+  {min:72,label:'STARK KAUFEN',   color:'var(--green)'},
+  {min:58,label:'KAUFEN',         color:'var(--green2)'},
+  {min:43,label:'HALTEN',         color:'var(--gold)'},
+  {min:28,label:'VERKAUFEN',      color:'var(--orange)'},
+  {min:0, label:'STARK VERKAUFEN',color:'var(--red)'},
+];
+function computeAnalysis(ticker){
+  const tech=scoreTechnical(ticker),macro=scoreMacro(),sent=scoreSentiment(ticker),mom=scoreMomentum(ticker);
+  const composite=Math.round(0.40*tech.score+0.30*macro.score+0.20*sent.score+0.10*mom.score);
+  const verdict=VERDICTS.find(v=>composite>=v.min)||VERDICTS.at(-1);
+  return {composite,verdict,tech,macro,sent,mom};
+}
+function scoreColor(s){
+  if(s>=70) return 'var(--green)';
+  if(s>=55) return 'var(--green2)';
+  if(s>=40) return 'var(--gold)';
+  if(s>=25) return 'var(--orange)';
+  return 'var(--red)';
+}
+
+// ── Summary text generator ────────────────────────────────────────────
+function generateSummary(ticker,analysis,q){
+  const {composite,verdict,tech,macro,sent,mom}=analysis;
+  const wl=CFG.watchlist.find(w=>w.ticker===ticker);
+  const name=wl?.name||q.name||ticker;
+  const p=s=>`<strong style="color:${scoreColor(s)}">${s}/100</strong>`;
+  const techTxt=tech.score>=70
+    ?`Die technische Lage ist <strong>stark bullisch</strong>: ${tech.details.goldenCross?'Golden Cross aktiv, ':''} RSI ${tech.details.rsi??'—'} (${tech.details.rsi<30?'überverkauft — starke Kaufzone':tech.details.rsi>70?'überkauft':'neutral'}), Kurs ${q.price&&tech.details.ma200?(q.price>tech.details.ma200?'<strong>über</strong>':'<strong>unter</strong>'):''} MA200.`
+    :tech.score>=50
+    ?`Technisch <strong>leicht positiv</strong>: RSI ${tech.details.rsi??'—'}, ${tech.details.goldenCross?'Golden Cross':'kein Golden Cross'}, 52W-Position ${tech.details.pos52??'—'}%.`
+    :tech.score>=35
+    ?`Technisch <strong>neutral bis schwach</strong>: RSI ${tech.details.rsi??'—'}, ${tech.details.goldenCross===false?'Death Cross — Vorsicht geboten.':'kein klares MA-Signal.'}`
+    :`Technisch <strong>bärisch</strong>: RSI ${tech.details.rsi??'—'}${tech.details.goldenCross===false?', Death Cross aktiv':''} — Kurs unter wichtigen Durchschnitten.`;
+  const macroTxt=macro.score>=65
+    ?`Das Makro-Umfeld ist <strong>konstruktiv</strong>: VIX ${macro.details.vix??'—'} (${macro.details.vix<15?'sehr niedrig':'moderat'}), 10J-Renditen ${macro.details.tnx??'—'}%.`
+    :macro.score>=42
+    ?`Das Makro-Umfeld ist <strong>gemischt</strong>: VIX ${macro.details.vix??'—'}, 10J ${macro.details.tnx??'—'}% — neutral bis leicht belastend.`
+    :`Das Makro-Umfeld ist <strong>herausfordernd</strong>: ${macro.details.vix>25?`erhöhter VIX (${macro.details.vix})`:''} ${macro.details.tnx>5?`hohe Renditen (${macro.details.tnx}%)`:''}.`;
+  const sentTxt=sent.score>=65
+    ?`News-Sentiment ist <strong>positiv</strong> (${sent.details.relevant} ticker-relevante Artikel, ${sent.details.positive} positive Signale).`
+    :sent.score>=45
+    ?`News-Sentiment ist <strong>neutral</strong> mit gemischter Berichterstattung.`
+    :`News-Sentiment ist <strong>negativ</strong> — ${sent.details.negative} negative Schlagzeilen dominieren.`;
+  const momTxt=mom.details.m3!=null
+    ?`3M-Rendite: <strong style="color:${mom.details.m3>=0?'var(--green)':'var(--red)'}">${fmt.pct(mom.details.m3)}</strong>${mom.details.m1!=null?`, 1M: <strong style="color:${mom.details.m1>=0?'var(--green)':'var(--red)'}">${fmt.pct(mom.details.m1)}</strong>`:'.'}`:'';
+  return `<strong>${name}</strong> erzielt einen Gesamtscore von ${p(composite)} (<strong style="color:${verdict.color}">${verdict.label}</strong>).<br><br>${techTxt} ${macroTxt}<br><br>${sentTxt} ${momTxt}`;
+}
+
+// ── Render analyse UI ─────────────────────────────────────────────────
+let _analyseChart=null;
+
+async function loadAndRenderAnalyse(ticker){
+  S.activeTicker=ticker;
+  document.querySelectorAll('#analyse-chips .chip').forEach(c=>c.classList.toggle('active',c.dataset.ticker===ticker));
+  document.getElementById('analyse-content').innerHTML=`<div class="analyse-loader"><span class="analyse-spin">⟳</span> Lade 1J-Daten für ${ticker}…</div>`;
+  // Fetch 1Y history + macro tickers in parallel
+  const macros=['^VIX','^TNX','GC=F','DX-Y.NYB'];
+  await Promise.allSettled([
+    fetchHistory(ticker,'1y'),
+    ...macros.map(s=>fetchHistory(s,'1y')),
+    ...macros.filter(s=>!S.quotes[s]).map(s=>fetchOneTicker(s)),
+  ]);
+  if(S.activeTicker!==ticker) return; // superseded by newer click
+  renderAnalyseUI(ticker, computeAnalysis(ticker));
+}
+
+function renderAnalyseUI(ticker, analysis){
+  const q=S.quotes[ticker]||{};
+  const {composite,verdict,tech,macro,sent,mom}=analysis;
+  const bars=S.history[ticker+'1y']?.data||[];
+  const wl=CFG.watchlist.find(w=>w.ticker===ticker);
+  const name=wl?.name||q.name||ticker;
+  const prc=q.currency==='GBp'?q.price/100:q.price;
+
+  // Portfolio position context
+  const pos=S.portfolio.find(p=>p.ticker===ticker);
+  const portCtx=pos&&prc?`
+    <div class="port-ctx">
+      <div class="port-ctx-lbl">Deine Position</div>
+      <div class="port-ctx-row">
+        <div><span class="text-muted">Stück: </span><span class="mono">${pos.qty}</span></div>
+        <div><span class="text-muted">Kaufkurs: </span><span class="mono">${pos.buyPrice.toFixed(2)} ${pos.buyCurrency||''}</span></div>
+        <div><span class="text-muted">Akt. P&L: </span><span class="mono ${prc>=pos.buyPrice?'td-green':'td-red'}">${fmt.pct(((prc-pos.buyPrice)/pos.buyPrice)*100)}</span></div>
+        <div><span class="text-muted">Unrealisiert: </span><span class="mono ${prc>=pos.buyPrice?'td-green':'td-red'}">${prc>=pos.buyPrice?'+':''}${((prc-pos.buyPrice)*pos.qty).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>
+      </div>
+    </div>` : '';
+
+  const techRow=(lbl,val,extra='')=>`<tr><td>${lbl}</td><td class="mono">${val}${extra?` <span style="font-size:.62rem;color:var(--muted)">${extra}</span>`:''}</td></tr>`;
+
+  document.getElementById('analyse-content').innerHTML=`
+  <div class="analyse-grid">
+    <!-- ── LEFT COLUMN ── -->
+    <div style="min-width:0">
+      <div class="card" style="margin-bottom:.75rem">
+        <div class="sec-hdr">
+          <div style="display:flex;align-items:baseline;gap:.6rem">
+            <span style="font-family:var(--mono);font-size:.9rem;font-weight:600">${ticker}</span>
+            <span style="color:var(--muted);font-size:.75rem">${name}</span>
+            ${prc?`<span class="mono" style="font-size:.85rem">${fmt.price(prc)}</span>`:''}
+            ${q.changePct!=null?`<span class="${q.changePct>=0?'td-green':'td-red'} mono" style="font-size:.75rem">${fmt.pct(q.changePct)}</span>`:''}
+          </div>
+          <div class="hist-range-btns">
+            <button class="hist-range-btn active" data-range="1y" onclick="changeAnalyseRange(this,'${ticker}')">1J</button>
+            <button class="hist-range-btn" data-range="6mo" onclick="changeAnalyseRange(this,'${ticker}')">6M</button>
+            <button class="hist-range-btn" data-range="3mo" onclick="changeAnalyseRange(this,'${ticker}')">3M</button>
+          </div>
+        </div>
+        <div class="hist-wrap"><canvas id="hist-chart"></canvas></div>
+        <div style="display:flex;gap:1.25rem;font-size:.6rem;color:var(--muted);margin-top:.5rem;justify-content:flex-end">
+          <span style="display:flex;align-items:center;gap:.3rem"><span style="display:inline-block;width:12px;height:2px;background:rgba(78,205,196,.9)"></span>Kurs</span>
+          <span style="display:flex;align-items:center;gap:.3rem"><span style="display:inline-block;width:12px;height:2px;background:rgba(0,255,136,.6)"></span>MA50</span>
+          <span style="display:flex;align-items:center;gap:.3rem"><span style="display:inline-block;width:12px;height:2px;background:rgba(255,215,0,.7)"></span>MA200</span>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:.75rem">
+        <div class="sec-hdr"><span class="sec-title">Technische Indikatoren</span><span style="font-family:var(--mono);font-size:.7rem;color:${scoreColor(tech.score)}">${tech.score}/100</span></div>
+        <table class="indicator-table">
+          ${techRow('RSI (14)', tech.details.rsi??'—', tech.details.rsi!=null?(tech.details.rsi<30?'🟢 überverkauft':tech.details.rsi>70?'🔴 überkauft':'⬜ neutral'):'')}
+          ${techRow('MA 50', tech.details.ma50!=null?fmt.price(tech.details.ma50):'—', prc&&tech.details.ma50?(prc>tech.details.ma50?`▲ +${fmt.pct(((prc-tech.details.ma50)/tech.details.ma50)*100)}`:`▼ ${fmt.pct(((prc-tech.details.ma50)/tech.details.ma50)*100)}`):'')}
+          ${techRow('MA 200', tech.details.ma200!=null?fmt.price(tech.details.ma200):'—', prc&&tech.details.ma200?(prc>tech.details.ma200?`▲ +${fmt.pct(((prc-tech.details.ma200)/tech.details.ma200)*100)}`:`▼ ${fmt.pct(((prc-tech.details.ma200)/tech.details.ma200)*100)}`):'')}
+          ${techRow('MA-Trend', tech.details.goldenCross==null?'—':tech.details.goldenCross?'<span style="color:var(--green)">● Golden Cross</span>':'<span style="color:var(--red)">● Death Cross</span>')}
+          ${techRow('52W-Position', tech.details.pos52!=null?tech.details.pos52+'%':'—', tech.details.pos52!=null?(tech.details.pos52<=30?'Nahe Jahrestief':tech.details.pos52>=70?'Nahe Jahreshoch':'Mittlerer Bereich'):'')}
+          ${techRow('Momentum 1M', `<span class="${tech.details.mom1m!=null&&tech.details.mom1m>=0?'td-green':'td-red'}">${tech.details.mom1m!=null?fmt.pct(tech.details.mom1m):'—'}</span>`)}
+          ${techRow('Momentum 3M', `<span class="${tech.details.mom3m!=null&&tech.details.mom3m>=0?'td-green':'td-red'}">${tech.details.mom3m!=null?fmt.pct(tech.details.mom3m):'—'}</span>`)}
+          ${techRow('Volumen vs Ø20d', tech.details.volRatio!=null?tech.details.volRatio+'×':'—', tech.details.volRatio>1.2?'Hohes Volumen':tech.details.volRatio<0.8?'Niedriges Volumen':'')}
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="sec-hdr"><span class="sec-title">Renditen (historisch)</span><span style="font-family:var(--mono);font-size:.7rem;color:${scoreColor(mom.score)}">${mom.score}/100</span></div>
+        <table class="indicator-table">
+          ${techRow('1 Woche',  `<span class="${mom.details.w1!=null&&mom.details.w1>=0?'td-green':'td-red'}">${mom.details.w1!=null?fmt.pct(mom.details.w1):'—'}</span>`)}
+          ${techRow('1 Monat',  `<span class="${mom.details.m1!=null&&mom.details.m1>=0?'td-green':'td-red'}">${mom.details.m1!=null?fmt.pct(mom.details.m1):'—'}</span>`)}
+          ${techRow('3 Monate', `<span class="${mom.details.m3!=null&&mom.details.m3>=0?'td-green':'td-red'}">${mom.details.m3!=null?fmt.pct(mom.details.m3):'—'}</span>`)}
+          ${techRow('6 Monate', `<span class="${mom.details.m6!=null&&mom.details.m6>=0?'td-green':'td-red'}">${mom.details.m6!=null?fmt.pct(mom.details.m6):'—'}</span>`)}
+        </table>
+      </div>
+    </div>
+
+    <!-- ── RIGHT COLUMN ── -->
+    <div>
+      <!-- Composite Score -->
+      <div class="score-card">
+        <div class="score-num" style="color:${verdict.color}">${composite}</div>
+        <div class="score-verdict" style="color:${verdict.color}">${verdict.label}</div>
+        <div class="score-factors">
+          ${[['Technisch',tech.score,40],['Makro',macro.score,30],['Sentiment',sent.score,20],['Momentum',mom.score,10]].map(([lbl,sc,wt])=>`
+          <div class="factor-row">
+            <span class="factor-label">${lbl} (${wt}%)</span>
+            <div class="factor-track"><div class="factor-fill" style="width:${sc}%;background:${scoreColor(sc)}"></div></div>
+            <span class="factor-score" style="color:${scoreColor(sc)}">${sc}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+
+      <!-- Macro Context -->
+      <div class="card" style="margin-bottom:.75rem">
+        <div class="sec-hdr"><span class="sec-title">Makro-Umfeld</span><span style="font-family:var(--mono);font-size:.7rem;color:${scoreColor(macro.score)}">${macro.score}/100</span></div>
+        <div class="macro-grid">
+          <div class="macro-item">
+            <div class="macro-lbl">VIX Angst-Index</div>
+            <div class="macro-val" style="color:${macro.details.vix==null?'var(--muted)':macro.details.vix<15?'var(--green)':macro.details.vix<25?'var(--gold)':'var(--red)'}">${macro.details.vix??'—'}</div>
+            <div class="macro-sub">${macro.details.vix==null?'—':macro.details.vix<15?'Niedrige Volatilität':macro.details.vix<20?'Moderat':macro.details.vix<30?'Erhöhte Angst':'Extreme Angst'}</div>
+          </div>
+          <div class="macro-item">
+            <div class="macro-lbl">US 10J Rendite</div>
+            <div class="macro-val" style="color:${macro.details.tnx==null?'var(--muted)':macro.details.tnx<4?'var(--green)':macro.details.tnx<5?'var(--gold)':'var(--red)'}">${macro.details.tnx!=null?macro.details.tnx+'%':'—'}</div>
+            <div class="macro-sub">${macro.details.tnx==null?'—':macro.details.tnx<3.5?'Günstige Zinsen':macro.details.tnx<5?'Neutrale Zinsen':'Hohe Zinslast'}</div>
+          </div>
+          <div class="macro-item">
+            <div class="macro-lbl">Gold (Tag %)</div>
+            <div class="macro-val" style="color:${macro.details.goldChg==null?'var(--muted)':macro.details.goldChg<0?'var(--green)':macro.details.goldChg>1.5?'var(--red)':'var(--gold)'}">${macro.details.goldChg!=null?fmt.pct(macro.details.goldChg):'—'}</div>
+            <div class="macro-sub">${macro.details.goldChg==null?'—':macro.details.goldChg<0?'Risk-On (Aktien+)':macro.details.goldChg>1.5?'Risk-Off (Aktien-)':'Gemischt'}</div>
+          </div>
+          <div class="macro-item">
+            <div class="macro-lbl">US Dollar (DXY)</div>
+            <div class="macro-val" style="color:${macro.details.dxy==null?'var(--muted)':macro.details.dxy<100?'var(--green)':macro.details.dxy<106?'var(--gold)':'var(--red)'}">${macro.details.dxy??'—'}</div>
+            <div class="macro-sub">${macro.details.dxy==null?'—':macro.details.dxy<100?'Schwacher USD':macro.details.dxy<104?'Neutraler USD':'Starker USD (Gegenwind)'}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- News Sentiment -->
+      <div class="card" style="margin-bottom:.75rem">
+        <div class="sec-hdr"><span class="sec-title">News Sentiment</span><span style="font-family:var(--mono);font-size:.7rem;color:${scoreColor(sent.score)}">${sent.score}/100</span></div>
+        <div style="font-size:.7rem;color:var(--muted);margin-bottom:.35rem">${sent.details.relevant} ticker-relevante Artikel · <span class="td-green">${sent.details.positive} positiv</span> · <span class="td-red">${sent.details.negative} negativ</span></div>
+        <div class="sentiment-words">
+          ${sent.details.words.length?sent.details.words.map(w=>`<span class="sent-word ${w.pos?'pos':'neg'}">${w.w}</span>`).join(''):'<span style="color:var(--muted);font-size:.72rem">Keine Treffer in aktuellen Nachrichten</span>'}
+        </div>
+      </div>
+
+      <!-- Analysis Summary -->
+      <div class="card">
+        <div class="sec-title" style="margin-bottom:.75rem">Analyse-Zusammenfassung</div>
+        <div class="summary-text">${generateSummary(ticker,analysis,q)}</div>
+        ${portCtx}
+      </div>
+    </div>
+  </div>`;
+
+  requestAnimationFrame(()=>renderHistChart(ticker, bars));
+}
+
+function renderHistChart(ticker, bars){
+  if(_analyseChart){_analyseChart.destroy();_analyseChart=null;}
+  const canvas=document.getElementById('hist-chart');
+  if(!canvas||!bars||!bars.length) return;
+  const closes=bars.map(b=>b.c);
+  const labels=bars.map(b=>new Date(b.t).toLocaleDateString('de-CH',{month:'short',day:'numeric'}));
+  const ma50=calcMA(closes,50);
+  const ma200=calcMA(closes,200);
+  const volumes=bars.map(b=>b.v||0);
+  const maxVol=Math.max(...volumes)||1;
+  _analyseChart=new Chart(canvas,{
+    data:{labels,datasets:[
+      {type:'bar',label:'Volumen',data:volumes,backgroundColor:'rgba(255,255,255,.04)',yAxisID:'yv',order:10},
+      {type:'line',label:'Kurs',data:closes,borderColor:'rgba(78,205,196,.9)',borderWidth:1.5,pointRadius:0,yAxisID:'y',order:1,tension:0},
+      {type:'line',label:'MA 50',data:ma50,borderColor:'rgba(0,255,136,.65)',borderWidth:1,pointRadius:0,yAxisID:'y',order:2,tension:0},
+      {type:'line',label:'MA 200',data:ma200,borderColor:'rgba(255,215,0,.7)',borderWidth:1.5,pointRadius:0,yAxisID:'y',order:3,tension:0,borderDash:[5,3]},
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{backgroundColor:'rgba(15,19,24,.96)',borderColor:'rgba(255,255,255,.1)',borderWidth:1,
+          callbacks:{label:ctx=>{
+            if(ctx.dataset.label==='Volumen') return null;
+            return `${ctx.dataset.label}: ${fmt.price(ctx.raw)}`;
+          }}
+        }
+      },
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,.025)'},ticks:{color:'rgba(232,234,240,.35)',maxTicksLimit:9,font:{size:9}}},
+        y:{position:'left',grid:{color:'rgba(255,255,255,.035)'},ticks:{color:'rgba(232,234,240,.5)',font:{size:9},callback:v=>fmt.price(v)}},
+        yv:{position:'right',grid:{display:false},ticks:{display:false},max:maxVol*6},
+      }
+    }
+  });
+}
+
+async function changeAnalyseRange(btn, ticker){
+  document.querySelectorAll('.hist-range-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const range=btn.dataset.range;
+  const orig=btn.textContent; btn.textContent='…';
+  const all=await fetchHistory(ticker,range);
+  btn.textContent=orig;
+  if(!all) return;
+  const cutoff={'1y':252,'6mo':126,'3mo':63}[range]||252;
+  renderHistChart(ticker, all.slice(-cutoff));
+}
+
+function initAnalyseChips(){
+  const el=document.getElementById('analyse-chips');
+  if(!el) return;
+  el.innerHTML=CFG.watchlist.map(w=>`<button class="chip" data-ticker="${w.ticker}" onclick="loadAndRenderAnalyse('${w.ticker}')">${w.ticker}</button>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
 //  CURSOR
 // ═══════════════════════════════════════════════════════════════════
 function initCursor(){
@@ -2199,6 +2671,8 @@ function initEvents(){
   document.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.addEventListener('click',()=>switchTab(btn.dataset.tab));
   });
+  // Analyse chips
+  initAnalyseChips();
   // Refresh
   document.getElementById('refresh-btn').addEventListener('click',masterRefresh);
   // Modal overlay close
