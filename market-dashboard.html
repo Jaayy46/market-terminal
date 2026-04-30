@@ -334,6 +334,39 @@ body.clink #cring{width:44px;height:44px}
 .empty-state{text-align:center;padding:3rem 1rem;color:var(--muted)}
 .empty-state svg{width:40px;height:40px;margin-bottom:.75rem;opacity:.3}
 .empty-state p{font-size:.82rem}
+/* ── SAXO BANK ───────────────────────────────────────────────────── */
+#saxo-bar{border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;background:var(--card)}
+.saxo-status{display:flex;align-items:center;gap:.6rem}
+.saxo-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.saxo-dot.connected{background:var(--green);box-shadow:0 0 8px rgba(0,255,136,.5);animation:pulse 2s infinite}
+.saxo-dot.disconnected{background:var(--muted)}
+.saxo-name{font-size:.8rem;font-weight:500}
+.saxo-env-badge{font-size:.58rem;font-weight:700;padding:.15rem .4rem;border-radius:3px;text-transform:uppercase;letter-spacing:.06em}
+.saxo-env-badge.sim{background:rgba(255,215,0,.12);color:var(--gold);border:1px solid rgba(255,215,0,.3)}
+.saxo-env-badge.live{background:rgba(0,255,136,.1);color:var(--green);border:1px solid rgba(0,255,136,.3)}
+.saxo-balance-strip{display:flex;gap:1.25rem;font-size:.72rem;flex-wrap:wrap}
+.saxo-bal-item{display:flex;flex-direction:column;gap:.1rem}
+.saxo-bal-lbl{font-size:.57rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+.saxo-bal-val{font-family:var(--mono);font-weight:600}
+#saxo-setup-hint{background:rgba(78,205,196,.07);border:1px solid rgba(78,205,196,.2);border-radius:6px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.75rem;line-height:1.6}
+#saxo-setup-hint a{color:var(--blue);text-decoration:underline}
+/* Orders panel */
+#orders-panel{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:1.25rem}
+.orders-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:.6rem;align-items:end;margin-top:.75rem}
+@media(max-width:800px){.orders-grid{grid-template-columns:1fr 1fr}}
+.order-side-btns{display:flex;border-radius:4px;overflow:hidden;border:1px solid var(--border)}
+.order-side-btn{flex:1;padding:.52rem .5rem;font-size:.72rem;font-weight:600;background:none;border:none;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;transition:all .2s}
+.order-side-btn.active-buy{background:rgba(0,255,136,.15);color:var(--green)}
+.order-side-btn.active-sell{background:rgba(255,71,87,.15);color:var(--red)}
+.instrument-result{background:var(--card2);border:1px solid var(--border);border-radius:4px;margin-top:.3rem;overflow:hidden}
+.instrument-row{padding:.5rem .75rem;font-size:.72rem;cursor:pointer;display:flex;justify-content:space-between;gap:.5rem;transition:background .15s}
+.instrument-row:hover{background:rgba(255,255,255,.04)}
+.instrument-sym{font-family:var(--mono);font-weight:600;color:var(--text)}
+.instrument-name{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
+/* Saxo positions table */
+.open-orders-section{margin-top:1rem}
+.oo-title{font-size:.6rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);padding-bottom:.4rem;border-bottom:1px solid var(--border);margin-bottom:.6rem}
+.account-selector{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:.3rem .6rem;font-size:.7rem;color:var(--text);outline:none;margin-left:.5rem}
 /* ── MISC ────────────────────────────────────────────────────────── */
 .text-green{color:var(--green)}
 .text-red{color:var(--red)}
@@ -341,6 +374,7 @@ body.clink #cring{width:44px;height:44px}
 .text-muted{color:var(--muted)}
 .mono{font-family:var(--mono)}
 .fw6{font-weight:600}
+.hidden{display:none!important}
 </style>
 </head>
 <body>
@@ -451,8 +485,57 @@ body.clink #cring{width:44px;height:44px}
     </div>
   </section>
   <section id="tab-portfolio" class="tab-panel">
+    <!-- SAXO BANK CONNECTION BAR -->
+    <div id="saxo-bar"></div>
+    <!-- SAXO SETUP HINT -->
+    <div id="saxo-setup-hint" class="hidden">
+      <strong>Saxo Bank Developer App einrichten:</strong><br>
+      1. Gehe zu <a href="https://developer.saxobank.com" target="_blank">developer.saxobank.com</a> → Apps → Create App<br>
+      2. Setze <strong>Grant Type</strong> = Authorization Code + PKCE<br>
+      3. Setze <strong>Redirect URI</strong> = <code id="saxo-redirect-uri" style="font-family:var(--mono);font-size:.7em;background:rgba(255,255,255,.06);padding:.1rem .3rem;border-radius:3px"></code><br>
+      4. Trage die <strong>Client ID</strong> unten ein und klicke "Verbinden"
+    </div>
+    <!-- ORDERS PANEL -->
+    <div id="orders-panel" class="hidden">
+      <div class="sec-hdr" style="margin-bottom:.75rem">
+        <span class="sec-title" style="font-size:.78rem">Order aufgeben</span>
+        <span id="order-instrument-label" style="font-size:.7rem;color:var(--muted)"></span>
+      </div>
+      <div class="orders-grid">
+        <div style="position:relative">
+          <div class="form-label">Instrument suchen</div>
+          <input type="text" class="form-input" id="order-search" placeholder="z.B. AAPL, Tesla…" autocomplete="off">
+          <div id="order-search-results" class="instrument-result hidden"></div>
+        </div>
+        <div>
+          <div class="form-label">Richtung</div>
+          <div class="order-side-btns">
+            <button class="order-side-btn active-buy" id="order-buy-btn">KAUFEN</button>
+            <button class="order-side-btn" id="order-sell-btn">VERKAUFEN</button>
+          </div>
+        </div>
+        <div>
+          <div class="form-label">Menge</div>
+          <input type="number" class="form-input" id="order-qty" placeholder="Anzahl" min="1" step="1" value="1">
+        </div>
+        <div>
+          <div class="form-label">Order-Typ</div>
+          <select class="form-input" id="order-type">
+            <option value="Market">Market</option>
+            <option value="Limit">Limit</option>
+            <option value="StopIfTraded">Stop</option>
+          </select>
+        </div>
+        <div id="order-limit-wrap" class="hidden">
+          <div class="form-label">Limit-Preis</div>
+          <input type="number" class="form-input" id="order-limit-price" placeholder="Preis" step="0.01">
+        </div>
+        <button class="btn btn-green" id="order-submit-btn" style="align-self:end;white-space:nowrap">Order senden</button>
+      </div>
+    </div>
+    <!-- MANUAL PORTFOLIO -->
     <div class="sec-hdr">
-      <span class="sec-title">Mein Portfolio</span>
+      <span class="sec-title" id="portfolio-section-title">Mein Portfolio</span>
       <button class="btn btn-green" id="add-position-btn">+ Position</button>
     </div>
     <div class="port-summary" id="port-summary"></div>
@@ -1514,6 +1597,402 @@ function switchTab(name){
 }
 
 // ═══════════════════════════════════════════════════════════════════
+//  SAXO BANK — PKCE OAuth + OpenAPI
+// ═══════════════════════════════════════════════════════════════════
+const SAXO = {
+  // Filled via setup modal, persisted in localStorage
+  clientId: '',
+  env: 'sim', // 'sim' | 'live'
+
+  get baseUrl(){ return this.env==='live'?'https://gateway.saxobank.com/openapi':'https://gateway.saxobank.com/sim/openapi'; },
+  get authUrl(){ return this.env==='live'?'https://live.logonvalidation.net':'https://sim.logonvalidation.net'; },
+  get redirectUri(){ return window.location.origin+window.location.pathname; },
+
+  accessToken: null,
+  refreshToken: null,
+  expiresAt: 0,
+  accountKey: null,
+  accounts: [],
+
+  // ── PKCE helpers ──────────────────────────────────────────────────
+  async _verifier(){
+    const a=new Uint8Array(32); crypto.getRandomValues(a);
+    return btoa(String.fromCharCode(...a)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+  },
+  async _challenge(v){
+    const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v));
+    return btoa(String.fromCharCode(...new Uint8Array(h))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+  },
+
+  // ── Initiate OAuth ────────────────────────────────────────────────
+  async initiateAuth(){
+    if(!this.clientId){ toast('Bitte erst Client ID eingeben','t-err'); return; }
+    const v=await this._verifier(), ch=await this._challenge(v), st=crypto.randomUUID();
+    sessionStorage.setItem('saxo_cv',v); sessionStorage.setItem('saxo_st',st);
+    const p=new URLSearchParams({response_type:'code',client_id:this.clientId,redirect_uri:this.redirectUri,code_challenge:ch,code_challenge_method:'S256',state:st});
+    window.location.href=`${this.authUrl}/authorize?${p}`;
+  },
+
+  // ── Handle OAuth callback ─────────────────────────────────────────
+  async handleCallback(){
+    const sp=new URLSearchParams(window.location.search);
+    const code=sp.get('code'), state=sp.get('state');
+    if(!code) return false;
+    if(state!==sessionStorage.getItem('saxo_st')){ toast('OAuth Fehler: state mismatch','t-err'); return false; }
+    const v=sessionStorage.getItem('saxo_cv');
+    const body=new URLSearchParams({grant_type:'authorization_code',code,redirect_uri:this.redirectUri,client_id:this.clientId,code_verifier:v});
+    try{
+      const r=await fetch(`${this.authUrl}/token`,{method:'POST',body,headers:{'Content-Type':'application/x-www-form-urlencoded'}});
+      if(!r.ok) throw new Error(`Token error ${r.status}`);
+      this._storeTokens(await r.json());
+      window.history.replaceState({},'',window.location.pathname);
+      sessionStorage.removeItem('saxo_cv'); sessionStorage.removeItem('saxo_st');
+      return true;
+    } catch(e){ toast('Token-Austausch fehlgeschlagen: '+e.message,'t-err'); return false; }
+  },
+
+  _storeTokens(d){
+    this.accessToken=d.access_token; this.refreshToken=d.refresh_token;
+    this.expiresAt=Date.now()+(d.expires_in-60)*1000;
+    lsSet('saxo_tok',{at:this.accessToken,rt:this.refreshToken,exp:this.expiresAt,env:this.env,cid:this.clientId});
+  },
+
+  loadTokens(){
+    const t=lsGet('saxo_tok'); if(!t) return false;
+    this.accessToken=t.at; this.refreshToken=t.rt; this.expiresAt=t.exp;
+    this.env=t.env||'sim'; this.clientId=t.cid||'';
+    return true;
+  },
+
+  async _refreshToken(){
+    if(!this.refreshToken||!this.clientId) return false;
+    const body=new URLSearchParams({grant_type:'refresh_token',refresh_token:this.refreshToken,redirect_uri:this.redirectUri,client_id:this.clientId});
+    try{
+      const r=await fetch(`${this.authUrl}/token`,{method:'POST',body,headers:{'Content-Type':'application/x-www-form-urlencoded'}});
+      if(!r.ok) return false;
+      this._storeTokens(await r.json()); return true;
+    } catch{ return false; }
+  },
+
+  async _ensureToken(){
+    if(this.accessToken&&Date.now()<this.expiresAt) return true;
+    return this._refreshToken();
+  },
+
+  get isConnected(){ return !!this.accessToken&&Date.now()<this.expiresAt; },
+
+  // ── API wrapper ───────────────────────────────────────────────────
+  async api(path,opts={}){
+    if(!await this._ensureToken()) throw new Error('Nicht authentifiziert');
+    const r=await fetch(`${this.baseUrl}/${path}`,{...opts,headers:{'Authorization':'Bearer '+this.accessToken,'Content-Type':'application/json',...(opts.headers||{})}});
+    if(r.status===401){ this.disconnect(); throw new Error('Token abgelaufen'); }
+    if(r.status===204) return {};
+    if(!r.ok){ const t=await r.text().catch(()=>''); throw new Error(`API ${r.status}: ${t.slice(0,200)}`); }
+    return r.json();
+  },
+
+  // ── API methods ───────────────────────────────────────────────────
+  async getAccounts(){
+    const d=await this.api('port/v1/accounts/me');
+    this.accounts=d.Data||[];
+    if(this.accounts.length&&!this.accountKey) this.accountKey=this.accounts[0].AccountKey;
+    return this.accounts;
+  },
+
+  async getBalance(){
+    if(!this.accountKey) await this.getAccounts();
+    return this.api(`port/v1/balances?AccountKey=${encodeURIComponent(this.accountKey)}&FieldGroups=CashAndCollateral,MarginAndExposure,TotalValues`);
+  },
+
+  async getPositions(){
+    if(!this.accountKey) await this.getAccounts();
+    return this.api(`port/v1/positions?AccountKey=${encodeURIComponent(this.accountKey)}&FieldGroups=DisplayAndFormat,PositionBase,PositionView`);
+  },
+
+  async searchInstruments(q){
+    return this.api(`ref/v1/instruments?Keywords=${encodeURIComponent(q)}&AssetTypes=Stock,Etf,CfdOnIndex,FxSpot&$top=8`);
+  },
+
+  async placeOrder(order){
+    return this.api('trade/v2/orders',{method:'POST',body:JSON.stringify(order)});
+  },
+
+  async cancelOrder(orderId){
+    return this.api(`trade/v2/orders/${orderId}`,{method:'DELETE'});
+  },
+
+  disconnect(){
+    this.accessToken=null; this.refreshToken=null; this.expiresAt=0;
+    this.accountKey=null; this.accounts=[];
+    localStorage.removeItem('saxo_tok');
+    renderSaxoBar();
+    renderPortfolio();
+    toast('Saxo Bank getrennt');
+  },
+};
+
+// ── Saxo Setup Modal ──────────────────────────────────────────────
+function openSaxoSetupModal(){
+  const env=SAXO.env, cid=SAXO.clientId;
+  openModal(`
+    <div class="modal-title">Saxo Bank verbinden</div>
+    <p style="font-size:.75rem;color:var(--muted);margin-bottom:1rem;line-height:1.6">
+      Erstelle eine App auf <a href="https://developer.saxobank.com" target="_blank" style="color:var(--blue);text-decoration:underline">developer.saxobank.com</a> mit:<br>
+      Grant Type: <strong>Authorization Code + PKCE</strong><br>
+      Redirect URI: <code style="font-family:var(--mono);font-size:.7em;background:rgba(255,255,255,.06);padding:.1rem .3rem;border-radius:3px">${window.location.origin+window.location.pathname}</code>
+    </p>
+    <div class="form-group">
+      <div class="form-label">Client ID</div>
+      <input class="form-input" id="saxo-cid-input" value="${cid}" placeholder="e12345678abcdef…">
+    </div>
+    <div class="form-group">
+      <div class="form-label">Umgebung</div>
+      <select class="form-input" id="saxo-env-input">
+        <option value="sim" ${env==='sim'?'selected':''}>Simulation (Test)</option>
+        <option value="live" ${env==='live'?'selected':''}>Live (Echtes Geld)</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:.5rem;margin-top:1.25rem">
+      <button class="btn btn-green" id="saxo-save-connect">Verbinden</button>
+      <button class="btn" onclick="closeModal()">Abbrechen</button>
+    </div>
+  `);
+  document.getElementById('saxo-save-connect').addEventListener('click',()=>{
+    const cid=document.getElementById('saxo-cid-input').value.trim();
+    if(!cid){ toast('Client ID fehlt','t-err'); return; }
+    SAXO.clientId=cid; SAXO.env=document.getElementById('saxo-env-input').value;
+    // Persist config for next time (without tokens)
+    lsSet('saxo_cfg',{cid:SAXO.clientId,env:SAXO.env});
+    closeModal();
+    SAXO.initiateAuth();
+  });
+}
+
+function openSaxoSetupOrConnect(){
+  const cfg=lsGet('saxo_cfg');
+  if(cfg&&cfg.cid){ SAXO.clientId=cfg.cid; SAXO.env=cfg.env||'sim'; SAXO.initiateAuth(); }
+  else{ openSaxoSetupModal(); }
+}
+
+// ── Saxo Connection Bar render ────────────────────────────────────
+function renderSaxoBar(){
+  const bar=document.getElementById('saxo-bar'); if(!bar) return;
+  const el=document.getElementById('saxo-redirect-uri');
+  if(el) el.textContent=window.location.origin+window.location.pathname;
+
+  if(!SAXO.isConnected){
+    document.getElementById('saxo-setup-hint').classList.remove('hidden');
+    document.getElementById('orders-panel').classList.add('hidden');
+    bar.innerHTML=`
+      <div class="saxo-status">
+        <div class="saxo-dot disconnected"></div>
+        <span class="saxo-name">Saxo Bank</span>
+        <span class="saxo-env-badge sim">NICHT VERBUNDEN</span>
+      </div>
+      <div style="display:flex;gap:.5rem">
+        <button class="btn btn-green" id="saxo-connect-btn" style="font-size:.7rem;padding:.32rem .7rem">Verbinden</button>
+        <button class="btn" id="saxo-settings-btn" style="font-size:.7rem;padding:.32rem .7rem">Einstellungen</button>
+      </div>`;
+    document.getElementById('saxo-connect-btn').addEventListener('click',openSaxoSetupOrConnect);
+    document.getElementById('saxo-settings-btn').addEventListener('click',openSaxoSetupModal);
+    return;
+  }
+
+  document.getElementById('saxo-setup-hint').classList.add('hidden');
+  document.getElementById('orders-panel').classList.remove('hidden');
+  const accOpts=SAXO.accounts.map(a=>`<option value="${a.AccountKey}"${a.AccountKey===SAXO.accountKey?' selected':''}>${a.AccountId||a.AccountKey} — ${a.Currency||''}</option>`).join('');
+  bar.innerHTML=`
+    <div class="saxo-status">
+      <div class="saxo-dot connected"></div>
+      <span class="saxo-name">Saxo Bank</span>
+      <span class="saxo-env-badge ${SAXO.env}">${SAXO.env.toUpperCase()}</span>
+      <span style="font-size:.65rem;color:var(--muted)">${SAXO.accounts[0]?.DisplayName||SAXO.accounts[0]?.AccountId||''}</span>
+    </div>
+    <div class="saxo-balance-strip">
+      <div class="saxo-bal-item"><div class="saxo-bal-lbl">Kontowert</div><div class="saxo-bal-val" id="saxo-equity">…</div></div>
+      <div class="saxo-bal-item"><div class="saxo-bal-lbl">Margin frei</div><div class="saxo-bal-val" id="saxo-margin">…</div></div>
+      <div class="saxo-bal-item"><div class="saxo-bal-lbl">Unreal. G/V</div><div class="saxo-bal-val" id="saxo-pnl">…</div></div>
+      <div class="saxo-bal-item"><div class="saxo-bal-lbl">Kasse</div><div class="saxo-bal-val" id="saxo-cash">…</div></div>
+    </div>
+    <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+      ${SAXO.accounts.length>1?`<select class="account-selector" id="saxo-acc-sel">${accOpts}</select>`:''}
+      <button class="btn" id="saxo-reload-btn" style="font-size:.7rem;padding:.32rem .7rem">↺ Reload</button>
+      <button class="btn" id="saxo-disc-btn" style="font-size:.7rem;padding:.32rem .7rem;color:var(--red)">Trennen</button>
+    </div>`;
+  document.getElementById('saxo-disc-btn').addEventListener('click',()=>SAXO.disconnect());
+  document.getElementById('saxo-reload-btn').addEventListener('click',loadSaxoData);
+  document.getElementById('saxo-acc-sel')?.addEventListener('change',e=>{ SAXO.accountKey=e.target.value; loadSaxoData(); });
+}
+
+// ── Load Saxo data ────────────────────────────────────────────────
+async function loadSaxoData(){
+  try {
+    await SAXO.getAccounts();
+    renderSaxoBar(); // re-render with accounts populated
+    const [bal,pos]=await Promise.all([SAXO.getBalance(),SAXO.getPositions()]);
+    const c=bal.Currency||'';
+    function setEl(id,val,cls){
+      const e=document.getElementById(id); if(!e) return;
+      e.textContent=val; if(cls) e.className='saxo-bal-val '+cls;
+    }
+    setEl('saxo-equity', bal.TotalValue!=null?`${fmt.price(bal.TotalValue)} ${c}`:'—');
+    setEl('saxo-margin', bal.MarginAvailableForTrading!=null?`${fmt.price(bal.MarginAvailableForTrading)} ${c}`:'—');
+    setEl('saxo-cash',   bal.CashBalance!=null?`${fmt.price(bal.CashBalance)} ${c}`:'—');
+    const pnl=bal.UnrealizedPositionsValue;
+    setEl('saxo-pnl', pnl!=null?`${fmt.price(pnl)} ${c}`:'—', pnl!=null?(pnl>=0?'saxo-bal-val text-green':'saxo-bal-val text-red'):'saxo-bal-val');
+    renderSaxoPositions(pos.Data||[]);
+  } catch(e){
+    toast('Saxo: '+e.message,'t-err');
+  }
+}
+
+// ── Render Saxo positions into portfolio table ────────────────────
+function renderSaxoPositions(positions){
+  // Remove previous saxo rows
+  document.querySelectorAll('.saxo-row').forEach(r=>r.remove());
+  const tbody=document.getElementById('port-tbody');
+  if(!tbody) return;
+  if(!positions.length){
+    const tr=document.createElement('tr'); tr.className='saxo-row';
+    tr.innerHTML=`<td colspan="8" style="text-align:center;color:var(--muted);padding:.75rem;font-size:.75rem">Keine offenen Positionen bei Saxo Bank</td>`;
+    tbody.insertBefore(tr,tbody.firstChild); return;
+  }
+  // Insert saxo rows at top
+  [...positions].reverse().forEach(p=>{
+    const d=p.DisplayAndFormat||{}, pv=p.PositionView||{}, pb=p.PositionBase||{};
+    const sym=d.Symbol||String(p.Uic)||'?';
+    const name=d.Description||sym;
+    const qty=pb.Amount??0;
+    const buyPrice=pb.CostPrice;
+    const curPrice=pv.CurrentPrice;
+    const pnl=pv.ProfitLossOnTrade??0;
+    const pnlPct=buyPrice&&curPrice?((curPrice-buyPrice)/buyPrice*100):null;
+    const cur=pb.CurrencyCode||d.Currency||'';
+    const dayChg=pv.TodaysProfitLoss;
+    const tr=document.createElement('tr'); tr.className='saxo-row';
+    tr.innerHTML=`
+      <td>
+        <span class="ticker-badge" style="background:rgba(78,205,196,.12);color:var(--blue);border-color:rgba(78,205,196,.2)">${sym}</span>
+        <span style="font-size:.7rem;color:var(--muted);margin-left:.3rem">${name.length>22?name.slice(0,22)+'…':name}</span>
+        <span style="font-size:.58rem;margin-left:.3rem;background:rgba(78,205,196,.08);color:var(--blue);padding:.05rem .25rem;border-radius:2px">SAXO</span>
+      </td>
+      <td class="mono">${qty}</td>
+      <td class="mono">${buyPrice!=null?fmt.price(buyPrice)+' '+cur:'—'}</td>
+      <td class="mono">${curPrice!=null?fmt.price(curPrice)+' '+cur:'—'}</td>
+      <td class="mono ${pnlPct!=null?(pnlPct>=0?'text-green':'text-red'):''}">${pnlPct!=null?fmt.pct(pnlPct):'—'}</td>
+      <td class="mono ${pnl>=0?'text-green':'text-red'}">${fmt.price(pnl)} ${cur}</td>
+      <td class="mono ${dayChg!=null?(dayChg>=0?'text-green':'text-red'):''}">${dayChg!=null?fmt.price(dayChg)+' '+cur:'—'}</td>
+      <td><button class="btn" style="font-size:.62rem;padding:.2rem .45rem;color:var(--red);border-color:rgba(255,71,87,.3)" onclick="confirmCloseSaxoPosition('${p.PositionId||''}','${sym}',${qty},'${cur}')">Schliessen</button></td>`;
+    tbody.insertBefore(tr,tbody.firstChild);
+  });
+  document.getElementById('portfolio-section-title').textContent='Portfolio';
+}
+
+async function confirmCloseSaxoPosition(posId,sym,qty,cur){
+  openModal(`
+    <div class="modal-title">Position schliessen?</div>
+    <p style="font-size:.8rem;margin-bottom:1rem">Alle <strong>${qty} ${sym}</strong> (${cur}) zum Marktpreis schliessen?</p>
+    <div style="display:flex;gap:.5rem">
+      <button class="btn" style="color:var(--red);border-color:rgba(255,71,87,.3)" id="close-pos-confirm">Ja, schliessen</button>
+      <button class="btn" onclick="closeModal()">Abbrechen</button>
+    </div>`);
+  document.getElementById('close-pos-confirm').addEventListener('click',async()=>{
+    closeModal();
+    // Close by placing a counter market order (Saxo doesn't have a direct "close position" endpoint for all asset types)
+    // For simplicity, we use the ClosePosition endpoint if available, otherwise reject
+    try {
+      await SAXO.api(`trade/v2/positions/close`,{method:'PUT',body:JSON.stringify({PositionId:posId,OrderType:'Market',ManualOrder:true})});
+      toast(`${sym} Position geschlossen ✓`,'t-ok');
+      loadSaxoData();
+    } catch(e){ toast('Schliessen fehlgeschlagen: '+e.message,'t-err'); }
+  });
+}
+
+// ── Orders Panel logic ────────────────────────────────────────────
+let _orderSide='Buy', _orderUic=null, _orderAssetType='Stock', _searchTimer=null;
+
+function initOrdersPanel(){
+  document.getElementById('order-buy-btn')?.addEventListener('click',()=>{
+    _orderSide='Buy';
+    document.getElementById('order-buy-btn').className='order-side-btn active-buy';
+    document.getElementById('order-sell-btn').className='order-side-btn';
+  });
+  document.getElementById('order-sell-btn')?.addEventListener('click',()=>{
+    _orderSide='Sell';
+    document.getElementById('order-sell-btn').className='order-side-btn active-sell';
+    document.getElementById('order-buy-btn').className='order-side-btn';
+  });
+  document.getElementById('order-type')?.addEventListener('change',e=>{
+    document.getElementById('order-limit-wrap').classList.toggle('hidden',e.target.value==='Market');
+  });
+  document.getElementById('order-search')?.addEventListener('input',e=>{
+    clearTimeout(_searchTimer);
+    const q=e.target.value.trim(); if(q.length<2){ document.getElementById('order-search-results').classList.add('hidden'); return; }
+    _searchTimer=setTimeout(()=>runInstrumentSearch(q),350);
+  });
+  document.getElementById('order-submit-btn')?.addEventListener('click',submitOrder);
+}
+
+async function runInstrumentSearch(q){
+  if(!SAXO.isConnected) return;
+  const res=document.getElementById('order-search-results'); res.classList.remove('hidden');
+  res.innerHTML=`<div class="instrument-row" style="color:var(--muted)">Suche…</div>`;
+  try {
+    const d=await SAXO.searchInstruments(q);
+    const items=(d.Data||[]).slice(0,8);
+    if(!items.length){ res.innerHTML=`<div class="instrument-row" style="color:var(--muted)">Keine Ergebnisse</div>`; return; }
+    res.innerHTML=items.map(i=>`
+      <div class="instrument-row" data-uic="${i.Identifier}" data-at="${i.AssetType}" data-sym="${i.Symbol}" data-name="${(i.Description||'').replace(/"/g,'&quot;')}" data-cur="${i.TradableAs?.[0]||''}">
+        <span class="instrument-sym">${i.Symbol}</span>
+        <span class="instrument-name">${i.Description||''}</span>
+        <span style="font-size:.62rem;color:var(--muted)">${i.ExchangeId||''} · ${i.AssetType}</span>
+      </div>`).join('');
+    res.querySelectorAll('.instrument-row').forEach(row=>{
+      row.addEventListener('click',()=>{
+        _orderUic=parseInt(row.dataset.uic,10); _orderAssetType=row.dataset.at;
+        document.getElementById('order-search').value=row.dataset.sym;
+        document.getElementById('order-instrument-label').textContent=`${row.dataset.sym} — ${row.dataset.name}`;
+        res.classList.add('hidden');
+      });
+    });
+  } catch(e){ res.innerHTML=`<div class="instrument-row" style="color:var(--red)">Fehler: ${e.message}</div>`; }
+}
+
+// Close search results when clicking outside
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#order-search')&&!e.target.closest('#order-search-results'))
+    document.getElementById('order-search-results')?.classList.add('hidden');
+});
+
+async function submitOrder(){
+  if(!SAXO.isConnected){ toast('Nicht mit Saxo verbunden','t-err'); return; }
+  if(!_orderUic){ toast('Bitte zuerst Instrument auswählen','t-err'); return; }
+  const qty=parseFloat(document.getElementById('order-qty').value);
+  if(!qty||qty<=0){ toast('Ungültige Menge','t-err'); return; }
+  const ot=document.getElementById('order-type').value;
+  const order={
+    Uic:_orderUic, AssetType:_orderAssetType,
+    BuySell:_orderSide, Amount:qty, OrderType:ot, ManualOrder:true,
+    AccountKey:SAXO.accountKey, OrderDuration:{DurationType:'DayOrder'},
+  };
+  if(ot!=='Market'){
+    const lp=parseFloat(document.getElementById('order-limit-price').value);
+    if(!lp){ toast('Bitte Limit-Preis eingeben','t-err'); return; }
+    order.OrderPrice=lp;
+  }
+  const btn=document.getElementById('order-submit-btn'); btn.disabled=true; btn.textContent='Sende…';
+  try {
+    const r=await SAXO.placeOrder(order);
+    toast(`Order platziert ✓ (ID: ${r.OrderId||'OK'})`,'t-ok');
+    document.getElementById('order-search').value='';
+    document.getElementById('order-instrument-label').textContent='';
+    _orderUic=null;
+    loadSaxoData();
+  } catch(e){ toast('Order fehlgeschlagen: '+e.message,'t-err'); }
+  finally{ btn.disabled=false; btn.textContent='Order senden'; }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 //  CURSOR
 // ═══════════════════════════════════════════════════════════════════
 function initCursor(){
@@ -1607,6 +2086,26 @@ document.addEventListener('DOMContentLoaded',async()=>{
   renderMktBadges();
   setInterval(renderMktBadges,30000);
   initEvents();
+
+  // ── Saxo: load saved config + tokens ──────────────────────────
+  const saxoCfg=lsGet('saxo_cfg');
+  if(saxoCfg){ SAXO.clientId=saxoCfg.cid||''; SAXO.env=saxoCfg.env||'sim'; }
+  SAXO.loadTokens();
+
+  // Handle OAuth callback (?code=…)
+  if(new URLSearchParams(window.location.search).has('code')){
+    const ok=await SAXO.handleCallback();
+    if(ok){
+      toast('Saxo Bank verbunden ✓','t-ok');
+      // Switch to portfolio tab
+      switchTab('portfolio');
+    }
+  }
+
+  // Initialize Saxo UI
+  renderSaxoBar();
+  initOrdersPanel();
+  if(SAXO.isConnected) loadSaxoData();
 
   // Restore tab
   const savedTab=S.settings.activeTab||'overview';
