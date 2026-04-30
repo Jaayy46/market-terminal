@@ -1123,6 +1123,7 @@ function renderWatchlist(){
 const SIG_COLS=[
   {key:'ticker',label:'Ticker'},
   {key:'name',  label:'Name'},
+  {key:'_spark',label:'5T',sortable:false},
   {key:'price', label:'Kurs'},
   {key:'dayPct',label:'Tag %'},
   {key:'wkPct', label:'Woche %'},
@@ -1130,20 +1131,23 @@ const SIG_COLS=[
   {key:'signal',label:'Signal'},
   {key:'target',label:'Zielkurs'},
   {key:'stop',  label:'Stop-Loss'},
+  {key:'_alert',label:'',sortable:false},
 ];
 function renderSignals(){
   const thead=document.getElementById('signals-thead');
   const tbody=document.getElementById('signals-tbody');
   const sc=S.sortCol, sd=S.sortDir;
   thead.innerHTML=SIG_COLS.map(c=>`
-    <th data-col="${c.key}" class="${sc===c.key?'sorted':''}" >
+    <th data-col="${c.key}" class="${sc===c.key?'sorted':''}" style="${c.sortable===false?'cursor:default;':''}">
       ${c.label}${sc===c.key?`<span class="sort-arrow">${sd==='asc'?'↑':'↓'}</span>`:''}
     </th>`).join('');
   thead.querySelectorAll('th').forEach(th=>{
+    const col=SIG_COLS.find(c=>c.key===th.dataset.col);
+    if(col?.sortable===false) return;
     th.addEventListener('click',()=>{
-      const col=th.dataset.col;
-      if(S.sortCol===col) S.sortDir=S.sortDir==='asc'?'desc':'asc';
-      else{ S.sortCol=col; S.sortDir='asc'; }
+      const key=th.dataset.col;
+      if(S.sortCol===key) S.sortDir=S.sortDir==='asc'?'desc':'asc';
+      else{ S.sortCol=key; S.sortDir='asc'; }
       renderSignals();
     });
   });
@@ -1170,9 +1174,16 @@ function renderSignals(){
 
   tbody.innerHTML=rows.map(r=>{
     const dcc=chgClass(r.dayPct), wcc=chgClass(r.wkPct);
+    const sparkId=`sig-spark-${r.ticker.replace(/[^a-zA-Z0-9]/g,'_')}`;
+    const yfUrl=`https://finance.yahoo.com/quote/${encodeURIComponent(r.ticker)}`;
     return `<tr>
-      <td class="mono fw6">${r.ticker}</td>
-      <td class="td-muted" style="max-width:140px;overflow:hidden;text-overflow:ellipsis">${r.name}</td>
+      <td class="mono fw6">
+        <a href="${yfUrl}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none" title="Yahoo Finance">
+          ${r.ticker}<span style="font-size:.55rem;color:var(--muted);margin-left:.2rem;opacity:.5">↗</span>
+        </a>
+      </td>
+      <td class="td-muted" style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</td>
+      <td><canvas id="${sparkId}" width="80" height="28" style="display:block"></canvas></td>
       <td class="mono">${fmt.price(r.price,r.currency)}</td>
       <td class="mono ${dcc==='up'?'td-green':dcc==='dn'?'td-red':''}">${fmt.pct(r.dayPct)}</td>
       <td class="mono ${wcc==='up'?'td-green':wcc==='dn'?'td-red':''}">${r.wkPct!=null?fmt.pct(r.wkPct):'—'}</td>
@@ -1180,8 +1191,18 @@ function renderSignals(){
       <td><span class="signal-badge ${r.sigCss}">${r.signal}</span></td>
       <td class="mono ${r.target?'td-green':''}">${r.target?fmt.price(r.target,r.currency):'—'}</td>
       <td class="mono ${r.stop?'text-red':''}">${r.stop?fmt.price(r.stop,r.currency):'—'}</td>
+      <td><button class="alert-action-btn" onclick="openQuickAlertModal('${r.ticker}')" style="font-size:.62rem;padding:.2rem .35rem;opacity:.55" title="Alert setzen">🔔</button></td>
     </tr>`;
   }).join('');
+
+  // Signals sparklines
+  requestAnimationFrame(()=>{
+    rows.forEach(r=>{
+      const id=`sig-spark-${r.ticker.replace(/[^a-zA-Z0-9]/g,'_')}`;
+      const cc=chgClass(r.dayPct);
+      renderSparkline(id, S.charts[r.ticker]||[], cc==='up'?'#00ff88':cc==='dn'?'#ff4757':'#ffd700');
+    });
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════
