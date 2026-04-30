@@ -1,0 +1,12 @@
+.DS_Store
+*.log
+*.env
+market-briefing/
+laprit-website/
+Website/
+images/
+css/
+js/
+CSS/
+.claude/
+skills-lock.json
