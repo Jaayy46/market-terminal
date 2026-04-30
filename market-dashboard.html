@@ -1063,16 +1063,23 @@ function renderWatchlist(){
     const p52=pos52(q);
     const closesToUse=S.charts[w.ticker]||[];
     const chartColor=cc==='up'?'#00ff88':cc==='dn'?'#ff4757':'#ffd700';
+    const yfUrl=`https://finance.yahoo.com/quote/${encodeURIComponent(w.ticker)}`;
     return `<div class="wl-card" data-type="${w.type}">
       <div class="wl-card-top">
         <div class="wl-card-left">
           <div class="type-dot ${w.type}"></div>
           <div>
-            <div class="wl-ticker">${w.ticker}</div>
+            <div class="wl-ticker">
+              ${w.ticker}
+              <a href="${yfUrl}" target="_blank" rel="noopener" title="Yahoo Finance öffnen" style="font-size:.58rem;color:var(--muted);margin-left:.3rem;opacity:.5;text-decoration:none" onclick="event.stopPropagation()">↗</a>
+            </div>
             <div class="wl-name">${w.name}</div>
           </div>
         </div>
-        <div class="signal-badge ${sig.css}">${sig.label}</div>
+        <div style="display:flex;align-items:center;gap:.4rem">
+          <button class="alert-action-btn" title="Alert setzen" onclick="event.stopPropagation();openQuickAlertModal('${w.ticker}')" style="font-size:.65rem;padding:.25rem .4rem;opacity:.6">🔔</button>
+          <div class="signal-badge ${sig.css}">${sig.label}</div>
+        </div>
       </div>
       <div class="wl-price-row">
         <div class="wl-price ${!q.price?'stale':''}">${fmt.price(q.price,q.currency)}</div>
@@ -1221,27 +1228,49 @@ function renderPortfolio(){
   const summary=document.getElementById('port-summary');
   const positions=S.portfolio;
 
-  let totalValue=0,totalCost=0,todayPnl=0;
+  const usdchf=S.quotes['USDCHF=X']?.price||1;
+  const eurchf=S.quotes['EURCHF=X']?.price||1;
+  const gbpchf=usdchf*1.25; // rough fallback; ideally fetch GBPCHF
+  function toChf(val,cur){
+    if(!val) return null;
+    const c=(cur||'').toUpperCase();
+    if(c==='CHF') return val;
+    if(c==='USD'||c==='') return val*usdchf;
+    if(c==='EUR') return val*eurchf;
+    if(c==='GBP') return val*gbpchf;
+    return val*usdchf; // default USD
+  }
+
+  let totalValue=0,totalCost=0,todayPnl=0,totalValueChf=0;
   const enriched=positions.map(p=>{
     const q=S.quotes[p.ticker]||{};
-    const cur=q.currency==='GBp'?q.price/100:q.price;
+    const priceAdj=q.currency==='GBp'?q.price/100:q.price;
+    const prevAdj=q.currency==='GBp'&&q.prevClose?q.prevClose/100:q.prevClose;
+    const cur=priceAdj;
+    const displayCur=q.currency==='GBp'?'GBP':q.currency||p.buyCurrency||'USD';
     const cost=p.qty*p.buyPrice;
     const val=cur?p.qty*cur:null;
     const unreal=val!=null?val-cost:null;
     const unrealPct=unreal!=null?(unreal/cost)*100:null;
-    const dayPnl=cur&&q.prevClose?p.qty*(cur-(q.currency==='GBp'?q.prevClose/100:q.prevClose)):null;
+    const dayPnl=cur&&prevAdj?p.qty*(cur-prevAdj):null;
+    const valChf=toChf(val,displayCur);
     if(val) totalValue+=val;
     totalCost+=cost;
     if(dayPnl) todayPnl+=dayPnl;
-    return {...p,q,cur,cost,val,unreal,unrealPct,dayPnl};
+    if(valChf) totalValueChf+=valChf;
+    return {...p,q,cur,cost,val,unreal,unrealPct,dayPnl,displayCur,valChf};
   });
   const totalPnl=totalValue-totalCost;
   const totalPnlPct=totalCost>0?(totalPnl/totalCost)*100:0;
+
+  // Persist value snapshot for history sparkline
+  _recordPortfolioSnapshot(totalValueChf||totalValue);
 
   summary.innerHTML=`
     <div class="port-kpi">
       <div class="port-kpi-lbl">Gesamtwert</div>
       <div class="port-kpi-val mono">${totalValue?totalValue.toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</div>
+      ${totalValueChf&&Math.abs(totalValueChf-totalValue)>1?`<div class="port-kpi-sub">${totalValueChf.toLocaleString('de-CH',{minimumFractionDigits:0,maximumFractionDigits:0})} CHF</div>`:''}
     </div>
     <div class="port-kpi">
       <div class="port-kpi-lbl">Einstand</div>
@@ -1253,9 +1282,19 @@ function renderPortfolio(){
       <div class="port-kpi-sub ${totalPnl>=0?'text-green':'text-red'}">${totalPnl>=0?'+':''}${totalPnl.toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
     </div>
     <div class="port-kpi">
-      <div class="port-kpi-lbl">Heute</div>
+      <div class="port-kpi-lbl">Heute P&L</div>
       <div class="port-kpi-val mono ${todayPnl>=0?'text-green':'text-red'}">${todayPnl>=0?'+':''}${todayPnl.toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+    </div>
+    <div class="port-kpi" style="border:none">
+      <div class="port-kpi-lbl">Verlauf (30d)</div>
+      <canvas id="port-hist-spark" width="120" height="44" style="display:block;margin-top:.2rem"></canvas>
     </div>`;
+
+  // Render history sparkline after DOM update
+  requestAnimationFrame(()=>{
+    const hist=lsGet('mkt_port_hist')||[];
+    renderSparkline('port-hist-spark', hist.map(h=>h.v), totalPnl>=0?'#00ff88':'#ff4757');
+  });
 
   tbody.innerHTML=enriched.length?enriched.map(p=>{
     const uc=p.unrealPct!=null?(p.unrealPct>=0?'td-green':'td-red'):'';
@@ -1295,6 +1334,18 @@ function renderPortfolio(){
     canvas.getContext('2d').clearRect(0,0,200,200);
     legend.innerHTML='';
   }
+}
+
+// ─── Portfolio value history (30 snapshots max) ────────────────────
+function _recordPortfolioSnapshot(value){
+  if(!value||!S.portfolio.length) return;
+  const hist=lsGet('mkt_port_hist')||[];
+  const now=Date.now();
+  // Deduplicate: only add if last snap >15min ago
+  if(hist.length&&now-hist[hist.length-1].t<900000) return;
+  hist.push({t:now,v:value});
+  if(hist.length>90) hist.splice(0,hist.length-90);
+  lsSet('mkt_port_hist',hist);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1421,6 +1472,46 @@ function renderAlertItem(a){
     </div>
   </div>`;
 }
+function openQuickAlertModal(ticker){
+  const q=S.quotes[ticker];
+  const cur=q?.price;
+  openModal(`
+    <div class="modal-title">Alert — ${ticker}</div>
+    ${cur?`<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">Aktueller Kurs: <span class="mono fw6">${fmt.price(cur,q?.currency)}</span></div>`:''}
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Typ</label>
+        <select class="form-select" id="qa-type">
+          <option value="above">Über</option>
+          <option value="below">Unter</option>
+          <option value="pct">% Veränderung</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Zielwert</label>
+        <input class="form-input" id="qa-value" type="number" step="any" placeholder="${cur?cur.toFixed(2):'0'}" value="${cur?cur.toFixed(2):''}">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notiz (optional)</label>
+      <input class="form-input" id="qa-note" type="text" placeholder="z.B. Zielkurs erreicht">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Abbrechen</button>
+      <button class="btn btn-green" onclick="saveQuickAlert('${ticker}')">Setzen</button>
+    </div>`);
+}
+function saveQuickAlert(ticker){
+  const type=document.getElementById('qa-type').value;
+  const value=parseFloat(document.getElementById('qa-value').value);
+  const note=document.getElementById('qa-note').value;
+  if(!value||isNaN(value)){toast('Bitte einen Zielwert eingeben.','t-error');return;}
+  S.alerts.push({id:crypto.randomUUID(),ticker,type,value,note,status:'active',createdAt:Date.now(),triggeredAt:null,snoozeUntil:null});
+  lsSet('mkt_alerts',S.alerts);
+  closeModal(); renderAlerts();
+  toast(`Alert für ${ticker} gesetzt ✓`,'t-ok');
+}
+
 function openAddAlertModal(){
   const opts=CFG.watchlist.map(w=>`<option value="${w.ticker}">${w.ticker} — ${w.name}</option>`).join('');
   document.getElementById('modal-card').innerHTML=`
@@ -1536,7 +1627,7 @@ function renderNews(){
 // ═══════════════════════════════════════════════════════════════════
 //  MODAL
 // ═══════════════════════════════════════════════════════════════════
-function openModal(){ document.getElementById('modal-overlay').classList.add('open'); }
+function openModal(html){ if(html!=null) document.getElementById('modal-card').innerHTML=html; document.getElementById('modal-overlay').classList.add('open'); }
 function closeModal(){ document.getElementById('modal-overlay').classList.remove('open'); }
 
 // ═══════════════════════════════════════════════════════════════════
