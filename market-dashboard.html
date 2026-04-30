@@ -416,6 +416,44 @@ body.clink #cring{width:44px;height:44px}
 .analyse-empty{text-align:center;padding:5rem 2rem;color:var(--muted)}
 .analyse-empty svg{width:48px;height:48px;opacity:.2;margin-bottom:.75rem}
 .analyse-empty p{font-size:.85rem}
+/* ── WATCHLIST CARD NEWS SNIPPET ─────────────────────────────────── */
+.wl-news{margin-top:.65rem;padding-top:.6rem;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:.35rem}
+.wl-news-item{display:flex;align-items:flex-start;gap:.45rem;text-decoration:none;transition:opacity .2s}
+.wl-news-item:hover{opacity:.8}
+.wl-news-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;margin-top:.35rem}
+.wl-news-dot.pos{background:var(--green)}
+.wl-news-dot.neg{background:var(--red)}
+.wl-news-dot.neu{background:var(--muted)}
+.wl-news-title{font-size:.66rem;line-height:1.35;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.wl-news-meta{font-size:.58rem;color:var(--muted2);white-space:nowrap;flex-shrink:0;margin-top:.35rem}
+/* ── ANALYSE NEWS SECTION ────────────────────────────────────────── */
+.anews-grid{display:flex;flex-direction:column;gap:.5rem;margin-top:.75rem}
+.anews-item{display:flex;gap:.75rem;align-items:flex-start;padding:.6rem .75rem;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:6px;text-decoration:none;transition:border-color .2s,background .2s}
+.anews-item:hover{border-color:var(--border2);background:rgba(255,255,255,.035)}
+.anews-sent{width:3px;border-radius:2px;flex-shrink:0;align-self:stretch;min-height:36px}
+.anews-sent.pos{background:var(--green)}
+.anews-sent.neg{background:var(--red)}
+.anews-sent.neu{background:rgba(255,255,255,.15)}
+.anews-body{flex:1;min-width:0}
+.anews-head{display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem;flex-wrap:wrap}
+.anews-source{font-size:.58rem;font-weight:700;padding:.1rem .35rem;border-radius:3px;text-transform:uppercase;letter-spacing:.06em}
+.anews-time{font-size:.58rem;color:var(--muted)}
+.anews-impact{font-size:.55rem;font-weight:700;padding:.1rem .3rem;border-radius:3px;text-transform:uppercase;letter-spacing:.05em}
+.anews-impact.pos{background:rgba(0,255,136,.12);color:var(--green);border:1px solid rgba(0,255,136,.25)}
+.anews-impact.neg{background:rgba(255,71,87,.1);color:var(--red);border:1px solid rgba(255,71,87,.25)}
+.anews-title{font-size:.78rem;line-height:1.4;color:var(--text)}
+.anews-empty{padding:1.5rem;text-align:center;color:var(--muted);font-size:.75rem}
+/* ── MARKET PULSE (Overview) ─────────────────────────────────────── */
+.pulse-list{display:flex;flex-direction:column;gap:.4rem;margin-top:.75rem}
+.pulse-item{display:flex;align-items:flex-start;gap:.6rem;padding:.55rem .7rem;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:5px;text-decoration:none;transition:border-color .15s}
+.pulse-item:hover{border-color:var(--border2)}
+.pulse-ticker-tag{font-family:var(--mono);font-size:.58rem;font-weight:600;padding:.12rem .35rem;border-radius:3px;background:rgba(255,255,255,.06);white-space:nowrap;flex-shrink:0}
+.pulse-title{font-size:.74rem;line-height:1.35;color:var(--muted);flex:1}
+.pulse-sent-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:.3rem}
+.pulse-sent-dot.pos{background:var(--green)}
+.pulse-sent-dot.neg{background:var(--red)}
+.pulse-sent-dot.neu{background:rgba(255,255,255,.2)}
+.pulse-time{font-size:.58rem;color:var(--muted2);white-space:nowrap;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -490,6 +528,16 @@ body.clink #cring{width:44px;height:44px}
         <thead><tr><th>Index</th><th>Kurs</th><th>Veränd.</th><th>Tag %</th><th>52W Tief</th><th>52W Hoch</th></tr></thead>
         <tbody id="idx-tbody"></tbody>
       </table>
+    </div>
+    <!-- Market Pulse -->
+    <div class="card" style="margin-top:1.25rem">
+      <div class="sec-hdr">
+        <span class="sec-title">Market Pulse — Heutige Treiber</span>
+        <span id="pulse-count" style="font-size:.6rem;color:var(--muted)"></span>
+      </div>
+      <div class="pulse-list" id="pulse-list">
+        <div style="color:var(--muted);font-size:.75rem;padding:.75rem 0">Nachrichten werden geladen…</div>
+      </div>
     </div>
   </section>
   <section id="tab-watchlist" class="tab-panel">
@@ -681,8 +729,9 @@ const CFG = {
 const TICKER_KW = {
   'NVDA':['nvidia','nvda'],'MSFT':['microsoft','msft'],'GOOGL':['google','alphabet','googl'],
   'MSTR':['microstrategy','strategy','mstr'],'IDIA.SW':['idorsia'],'PAT.DE':['patrizia'],
-  'XRP-USD':['xrp','ripple'],'BTC-USD':['bitcoin','btc'],
-  'VHYL.L':['vanguard'],'VWCE.DE':['vwce'],'EIMI.L':['eimi','emerging'],
+  'XRP-USD':['xrp','ripple','crypto'],'BTC-USD':['bitcoin','btc','crypto'],
+  'VHYL.L':['vanguard','dividend'],'VWCE.DE':['vwce','all-world'],'EIMI.L':['eimi','emerging markets'],
+  '^GSPC':['s&p','sp500','s&p 500','s&p500'],'BTC-USD':['bitcoin','btc'],
 };
 const CHART_COLORS = ['#00ff88','#4ecdc4','#f97316','#a78bfa','#ffd700','#60a5fa','#f43f5e','#22d3ee','#86efac','#fb923c','#c084fc'];
 
@@ -748,6 +797,27 @@ const fmt = {
 };
 
 function chgClass(pct){ return pct>0?'up':pct<0?'dn':'flat' }
+
+// ── News helpers ──────────────────────────────────────────────────────
+function tickerNews(ticker, limit=8){
+  const wl=CFG.watchlist.find(w=>w.ticker===ticker);
+  const name=wl?.name||'';
+  const kws=(TICKER_KW[ticker]||[ticker.toLowerCase().replace(/-usd$/,'')]).concat(name.toLowerCase().split(' ').filter(w=>w.length>3));
+  return S.news
+    .filter(n=>n.tickers.includes(ticker)||kws.some(k=>n.title.toLowerCase().includes(k)))
+    .slice(0,limit);
+}
+function articleSent(title){
+  const t=title.toLowerCase();
+  const pos=(typeof POS_WORDS!=='undefined'?POS_WORDS:[]).filter(w=>t.includes(w)).length;
+  const neg=(typeof NEG_WORDS!=='undefined'?NEG_WORDS:[]).filter(w=>t.includes(w)).length;
+  return pos>neg?'pos':neg>pos?'neg':'neu';
+}
+function impactLabel(sent){
+  if(sent==='pos') return '<span class="anews-impact pos">▲ Bullish</span>';
+  if(sent==='neg') return '<span class="anews-impact neg">▼ Bearish</span>';
+  return '';
+}
 function sigClass(lbl){
   const m={'STARK KAUFEN':'sig-sb','KAUFEN':'sig-b','HALTEN':'sig-h','VERKAUFEN':'sig-s','STARK VERKAUFEN':'sig-ss'};
   return m[lbl]||'sig-na';
@@ -954,6 +1024,13 @@ async function fetchAllNews(){
   S.news=results.filter(r=>r.status==='fulfilled').flatMap(r=>r.value)
     .sort((a,b)=>new Date(b.pub)-new Date(a.pub));
   renderNews();
+  renderPulse();
+  renderWatchlist(); // refresh news snippets on cards
+  // Refresh open analyse tab news section if active
+  if(S.activeTicker) {
+    const anews=document.getElementById(`anews-${S.activeTicker.replace(/[^a-z0-9]/gi,'_')}`);
+    if(anews) renderAnalyseNews(S.activeTicker, anews);
+  }
   // cache
   try{ localStorage.setItem('mkt_news',JSON.stringify({items:S.news,at:Date.now()})); }catch{}
 }
@@ -1160,6 +1237,20 @@ function renderWatchlist(){
         <div class="wl-stat"><span class="wl-stat-lbl">Marktkapital.</span><span class="wl-stat-val">${fmt.large(q.mktCap)}</span></div>
         <div class="wl-stat"><span class="wl-stat-lbl">KGV</span><span class="wl-stat-val">${q.pe?q.pe.toFixed(1):'—'}</span></div>
       </div>
+      ${(()=>{
+        const recent=tickerNews(w.ticker,2);
+        if(!recent.length) return '';
+        return `<div class="wl-news">${recent.map(n=>{
+          const sent=articleSent(n.title);
+          return `<a class="wl-news-item" href="${n.link}" target="_blank" rel="noopener">
+            <div class="wl-news-dot ${sent}"></div>
+            <div style="flex:1;min-width:0">
+              <div class="wl-news-title">${n.title}</div>
+            </div>
+            <div class="wl-news-meta">${fmt.rel(n.pub)}</div>
+          </a>`;
+        }).join('')}</div>`;
+      })()}
     </div>`;
   }).join('');
 
@@ -1742,6 +1833,64 @@ async function masterRefresh(){
     btn.classList.remove('spinning');
   }
 }
+function renderPulse(){
+  const el=document.getElementById('pulse-list');
+  const cnt=document.getElementById('pulse-count');
+  if(!el) return;
+  // Collect top news per watchlist ticker — max 1 article per ticker, show 10 total
+  const seen=new Set();
+  const items=[];
+  CFG.watchlist.forEach(w=>{
+    const news=tickerNews(w.ticker,1);
+    if(news.length&&!seen.has(news[0].link)){
+      seen.add(news[0].link);
+      items.push({ticker:w.ticker,type:w.type,n:news[0]});
+    }
+  });
+  // Fill with general market news if fewer than 6 items
+  if(items.length<8){
+    S.news.slice(0,20).forEach(n=>{
+      if(items.length>=10||seen.has(n.link)) return;
+      seen.add(n.link);
+      items.push({ticker:null,type:null,n});
+    });
+  }
+  if(!items.length){el.innerHTML='<div style="color:var(--muted);font-size:.75rem;padding:.75rem 0">Noch keine Nachrichten geladen — wird automatisch aktualisiert.</div>';return;}
+  const typeColor={stock:'var(--blue)',crypto:'var(--orange)',etf:'var(--purple)'};
+  if(cnt) cnt.textContent=`${items.length} Meldungen`;
+  el.innerHTML=items.map(({ticker,type,n})=>{
+    const sent=articleSent(n.title);
+    return `<a class="pulse-item" href="${n.link}" target="_blank" rel="noopener">
+      <div class="pulse-sent-dot ${sent}"></div>
+      ${ticker?`<span class="pulse-ticker-tag" style="color:${typeColor[type]||'var(--muted)'};border:1px solid ${typeColor[type]||'var(--border)'}33">${ticker}</span>`:''}
+      <span class="pulse-title">${n.title}</span>
+      <span class="pulse-time">${fmt.rel(n.pub)}</span>
+    </a>`;
+  }).join('');
+}
+
+function renderAnalyseNews(ticker, container){
+  const news=tickerNews(ticker,8);
+  if(!news.length){
+    container.innerHTML=`<div class="anews-empty">Keine aktuellen Nachrichten zu ${ticker} gefunden.<br><span style="font-size:.65rem">News werden alle 10 Minuten aktualisiert.</span></div>`;
+    return;
+  }
+  container.innerHTML=news.map(n=>{
+    const sent=articleSent(n.title);
+    return `<a class="anews-item" href="${n.link}" target="_blank" rel="noopener">
+      <div class="anews-sent ${sent}"></div>
+      <div class="anews-body">
+        <div class="anews-head">
+          <span class="anews-source" style="background:${n.color}22;color:${n.color};border:1px solid ${n.color}44">${n.source}</span>
+          <span class="anews-time">${fmt.rel(n.pub)}</span>
+          ${impactLabel(sent)}
+        </div>
+        <div class="anews-title">${n.title}</div>
+      </div>
+    </a>`;
+  }).join('');
+}
+
 function renderAll(){
   renderTickerStrip();
   renderMktBadges();
@@ -1749,6 +1898,7 @@ function renderAll(){
   renderHeatmap();
   renderIdxTable();
   renderGauge(computeSentiment());
+  renderPulse();
   renderWatchlist();
   renderSignals();
   renderPortfolio();
@@ -2567,10 +2717,38 @@ function renderAnalyseUI(ticker, analysis){
       </div>
 
       <!-- Analysis Summary -->
-      <div class="card">
+      <div class="card" style="margin-bottom:.75rem">
         <div class="sec-title" style="margin-bottom:.75rem">Analyse-Zusammenfassung</div>
         <div class="summary-text">${generateSummary(ticker,analysis,q)}</div>
         ${portCtx}
+      </div>
+
+      <!-- Kurs-Treiber: Relevante Nachrichten -->
+      <div class="card">
+        <div class="sec-hdr">
+          <span class="sec-title">Kurs-Treiber & Nachrichten</span>
+          <span style="font-size:.6rem;color:var(--muted)">${tickerNews(ticker).length} Treffer</span>
+        </div>
+        <div class="anews-grid" id="anews-${ticker.replace(/[^a-z0-9]/gi,'_')}">
+          ${(()=>{
+            const news=tickerNews(ticker,8);
+            if(!news.length) return `<div class="anews-empty">Keine aktuellen Nachrichten zu ${ticker} gefunden.<br><span style="font-size:.65rem">News werden alle 10 Minuten aktualisiert.</span></div>`;
+            return news.map(n=>{
+              const sent=articleSent(n.title);
+              return `<a class="anews-item" href="${n.link}" target="_blank" rel="noopener">
+                <div class="anews-sent ${sent}"></div>
+                <div class="anews-body">
+                  <div class="anews-head">
+                    <span class="anews-source" style="background:${n.color}22;color:${n.color};border:1px solid ${n.color}44">${n.source}</span>
+                    <span class="anews-time">${fmt.rel(n.pub)}</span>
+                    ${impactLabel(sent)}
+                  </div>
+                  <div class="anews-title">${n.title}</div>
+                </div>
+              </a>`;
+            }).join('');
+          })()}
+        </div>
       </div>
     </div>
   </div>`;
