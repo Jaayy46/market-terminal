@@ -726,69 +726,63 @@ function startClock(){
 // ═══════════════════════════════════════════════════════════════════
 //  DATA LAYER — YAHOO FINANCE
 // ═══════════════════════════════════════════════════════════════════
-const YF1 = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols=';
-const YF2 = 'https://query2.finance.yahoo.com/v7/finance/quote?symbols=';
-const YFC1= sym=>`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d`;
-const YFC2= sym=>`https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d`;
-const PROXY= url=>`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+// v8/finance/chart: works with CORS, returns quote metadata + closes
+const YFC = sym =>
+  `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d&includePrePost=false`;
+const YFC2 = sym =>
+  `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d&includePrePost=false`;
 
-async function yfFetch(url, url2){
-  const ctrl=()=>AbortSignal.timeout?AbortSignal.timeout(6000):undefined;
-  for(const u of [url, url2]){
-    try{
-      const r=await fetch(u,{signal:ctrl()});
-      if(r.ok) return await r.json();
-    }catch{}
-  }
-  // proxy fallback
+async function yfChart(sym){
+  const t = n => AbortSignal.timeout ? {signal:AbortSignal.timeout(n)} : {};
+  // 1) direct query1
+  try{ const r=await fetch(YFC(sym),t(5000));  if(r.ok) return await r.json(); }catch{}
+  // 2) direct query2
+  try{ const r=await fetch(YFC2(sym),t(5000)); if(r.ok) return await r.json(); }catch{}
+  // 3) corsproxy.io
   try{
-    const r=await fetch(PROXY(url),{signal:ctrl()});
-    if(r.ok){const d=await r.json(); return JSON.parse(d.contents);}
+    const r=await fetch(`https://corsproxy.io/?${encodeURIComponent(YFC(sym))}`,t(8000));
+    if(r.ok) return await r.json();
+  }catch{}
+  // 4) allorigins.win
+  try{
+    const r=await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(YFC(sym))}`,t(10000));
+    if(r.ok){ const d=await r.json(); return JSON.parse(d.contents); }
   }catch{}
   return null;
 }
 
-async function fetchAllQuotes(){
+async function fetchOneTicker(sym){
+  const data = await yfChart(sym);
+  const result = data?.chart?.result?.[0];
+  if(!result) return;
+  const m = result.meta;
+  const closes = (result.indicators?.quote?.[0]?.close||[]).filter(x=>x!=null);
+  const prev = m.previousClose ?? m.chartPreviousClose ?? m.regularMarketPreviousClose;
+  const price = m.regularMarketPrice ?? (closes.length?closes[closes.length-1]:null);
+  if(!price) return;
+  const chg = prev ? price - prev : 0;
+  const chgPct = prev ? (chg/prev)*100 : 0;
+  S.quotes[sym] = {
+    price, change:chg, changePct:chgPct, prevClose:prev,
+    vol:     m.regularMarketVolume,
+    mktCap:  m.marketCap,
+    low52:   m.fiftyTwoWeekLow,
+    high52:  m.fiftyTwoWeekHigh,
+    pe:      m.trailingPE,
+    currency:m.currency,
+    name:    m.longName||m.shortName||sym,
+  };
+  if(closes.length) S.charts[sym] = closes;
+}
+
+async function fetchAllData(){
   const all=[
     ...CFG.watchlist.map(w=>w.ticker),
     ...CFG.indices.map(i=>i.ticker),
     ...CFG.forex.map(f=>f.ticker),
   ];
-  const syms=all.join(',');
-  const data=await yfFetch(YF1+encodeURIComponent(syms), YF2+encodeURIComponent(syms));
-  const results=data?.quoteResponse?.result||[];
-  results.forEach(q=>{
-    S.quotes[q.symbol]={
-      price:       q.regularMarketPrice,
-      change:      q.regularMarketChange,
-      changePct:   q.regularMarketChangePercent,
-      prevClose:   q.regularMarketPreviousClose,
-      open:        q.regularMarketOpen,
-      high:        q.regularMarketDayHigh,
-      low:         q.regularMarketDayLow,
-      vol:         q.regularMarketVolume,
-      avgVol:      q.averageDailyVolume3Month,
-      mktCap:      q.marketCap,
-      low52:       q.fiftyTwoWeekLow,
-      high52:      q.fiftyTwoWeekHigh,
-      pe:          q.trailingPE,
-      currency:    q.currency,
-      marketState: q.marketState,
-      name:        q.longName||q.shortName||q.symbol,
-    };
-  });
-  return results.length>0;
-}
-
-async function fetchChart(ticker){
-  const data=await yfFetch(YFC1(ticker), YFC2(ticker));
-  const closes=data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close||[];
-  S.charts[ticker]=closes;
-}
-
-async function fetchAllCharts(){
-  await Promise.allSettled(CFG.watchlist.map(w=>fetchChart(w.ticker)));
-  S.chartsAt=Date.now();
+  const results = await Promise.allSettled(all.map(fetchOneTicker));
+  return results.some(r=>r.status==='fulfilled' && r.value!==null);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1482,14 +1476,12 @@ async function masterRefresh(){
   const btn=document.getElementById('refresh-btn');
   btn.classList.add('spinning');
   try{
-    const ok=await fetchAllQuotes();
-    if(Date.now()-S.chartsAt>CFG.chartRefreshInterval){
-      await fetchAllCharts();
-    }
+    await fetchAllData();
     S.lastRefresh=Date.now();
     renderAll();
     checkAlerts();
-    if(!ok) toast('Datenabruf eingeschränkt — möglicher CORS-Fehler','t-error');
+    const hasData=Object.keys(S.quotes).length>0;
+    if(!hasData) toast('Keine Kursdaten — prüfe die Browser-Konsole (F12)','t-error');
   }catch(e){
     console.error('Refresh error:',e);
     toast('Aktualisierung fehlgeschlagen — erneuter Versuch in 60s','t-error');
