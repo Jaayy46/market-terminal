@@ -5,8 +5,8 @@
   --surface:  #0d1117;
   --card:     #0f1318;
   --card2:    #141b24;
-  --border:   rgba(255,255,255,.06);
-  --border2:  rgba(255,255,255,.10);
+  --border:   rgba(255,255,255,.08);
+  --border2:  rgba(255,255,255,.13);
   --text:     #e8eaf0;
   --muted:    rgba(232,234,240,.45);
   --muted2:   rgba(232,234,240,.25);
@@ -20,8 +20,8 @@
   --mono:     'JetBrains Mono',monospace;
   --ease:     cubic-bezier(0.16,1,0.3,1);
   --hdr-h:    52px;
-  --nav-h:    44px;
-  --top:      96px;
+  --nav-h:    48px;
+  --top:      100px;
 }
 html{font-size:16px}
 body{
@@ -103,7 +103,7 @@ body.clink #cring{width:44px;height:44px}
 }
 #tab-nav::-webkit-scrollbar{display:none}
 .tab-btn{
-  background:none;border:none;padding:0 1.1rem;font-size:.72rem;font-weight:500;
+  background:none;border:none;padding:0 1.1rem;font-size:.73rem;font-weight:500;
   letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
   white-space:nowrap;position:relative;transition:color .2s;
   display:flex;align-items:center;gap:.4rem;
@@ -114,19 +114,19 @@ body.clink #cring{width:44px;height:44px}
 .tab-btn:hover:not(.active){color:rgba(232,234,240,.7)}
 .tab-badge{background:var(--red);color:#fff;border-radius:8px;font-size:.55rem;padding:.1rem .35rem;font-weight:600;min-width:16px;text-align:center}
 /* ── MAIN CONTENT ────────────────────────────────────────────────── */
-#content{margin-top:var(--top);min-height:calc(100vh - var(--top));padding:1.5rem 1.25rem 3rem}
+#content{margin-top:var(--top);min-height:calc(100vh - var(--top));padding:1.5rem 1.25rem 3rem;max-width:1600px;margin-left:auto;margin-right:auto}
 .tab-panel{display:none}
 .tab-panel.active{display:block}
 /* ── SECTION HEADER ──────────────────────────────────────────────── */
-.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
-.sec-title{font-size:.65rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;border-left:2px solid var(--green);padding-left:.6rem}
+.sec-title{font-size:.68rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)}
 .sec-actions{display:flex;gap:.5rem}
 /* ── CARDS ───────────────────────────────────────────────────────── */
 .card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1rem}
 .card:hover{border-color:var(--border2)}
 /* ── KPI GRID (Overview) ─────────────────────────────────────────── */
 .kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.75rem;margin-bottom:1.5rem}
-.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.9rem 1rem;transition:border-color .2s,transform .2s}
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1rem 1.25rem;transition:border-color .2s,transform .2s}
 .kpi-card:hover{border-color:var(--border2);transform:translateY(-1px)}
 .kpi-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.6rem}
 .kpi-name{font-size:.62rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
