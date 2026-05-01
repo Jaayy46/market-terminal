@@ -1,4 +1,5 @@
 .DS_Store
+remote-claude/
 *.log
 *.env
 market-briefing/
