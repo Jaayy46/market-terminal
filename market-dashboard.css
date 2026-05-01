@@ -187,7 +187,9 @@ body.clink #cring{width:44px;height:44px}
 .type-dot.crypto{background:var(--orange)}
 .type-dot.etf{background:var(--purple)}
 .wl-ticker{font-family:var(--mono);font-size:.8rem;font-weight:600;color:var(--text)}
-.wl-name{font-size:.62rem;color:var(--muted);margin-top:.05rem;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wl-name{font-size:.62rem;color:var(--muted);margin-top:.05rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wl-name-primary{font-size:.78rem;font-weight:600;color:var(--text);line-height:1.25;white-space:normal;max-width:180px}
+.wl-ticker-secondary{font-family:var(--mono);font-size:.58rem;color:var(--muted2);margin-top:.15rem}
 .signal-badge{font-size:.58rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:.22rem .55rem;border-radius:3px;border:1px solid;white-space:nowrap}
 .sig-sb{color:var(--green);border-color:rgba(0,255,136,.4);background:rgba(0,255,136,.1)}
 .sig-b {color:var(--green2);border-color:rgba(74,222,128,.35);background:rgba(74,222,128,.08)}

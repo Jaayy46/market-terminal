@@ -563,11 +563,16 @@ function renderWatchlist(){
         <div class="wl-card-left">
           <div class="type-dot ${w.type}"></div>
           <div>
+            ${w.type==='etf'?`
+            <div class="wl-name-primary">${w.name}</div>
+            <div class="wl-ticker-secondary">${w.ticker} <a href="${yfUrl}" target="_blank" rel="noopener" title="Yahoo Finance öffnen" style="color:var(--muted2);opacity:.6;text-decoration:none" onclick="event.stopPropagation()">↗</a></div>
+            `:`
             <div class="wl-ticker">
               ${w.ticker}
               <a href="${yfUrl}" target="_blank" rel="noopener" title="Yahoo Finance öffnen" style="font-size:.58rem;color:var(--muted);margin-left:.3rem;opacity:.5;text-decoration:none" onclick="event.stopPropagation()">↗</a>
             </div>
             <div class="wl-name">${w.name}</div>
+            `}
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:.4rem">
@@ -696,7 +701,7 @@ function renderSignals(){
           ${r.ticker}<span style="font-size:.55rem;color:var(--muted);margin-left:.2rem;opacity:.5">↗</span>
         </a>
       </td>
-      <td class="td-muted" style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</td>
+      <td class="td-muted" style="max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</td>
       <td><canvas id="${sparkId}" width="80" height="28" style="display:block"></canvas></td>
       <td class="mono">${fmt.price(r.price,r.currency)}</td>
       <td class="mono ${dcc==='up'?'td-green':dcc==='dn'?'td-red':''}">${fmt.pct(r.dayPct)}</td>
