@@ -279,15 +279,32 @@ body.clink #cring{width:44px;height:44px}
 .notif-prompt-text{font-size:.75rem;color:var(--gold)}
 /* ── NEWS ────────────────────────────────────────────────────────── */
 .news-filters{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:1rem}
-.news-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:.75rem}
-.news-card{background:var(--card);border:1px solid var(--border);border-radius:7px;padding:.9rem;display:flex;flex-direction:column;gap:.5rem;transition:border-color .2s,transform .2s}
+.news-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:.75rem}
+/* Sentiment left bar */
+.news-sent-bar{width:3px;flex-shrink:0;align-self:stretch;border-radius:0}
+.news-sent-bar.pos{background:var(--green)}
+.news-sent-bar.neg{background:var(--red)}
+.news-sent-bar.neu{background:rgba(255,255,255,.1)}
+/* Base card — horizontal: sent-bar | [image] | body */
+.news-card{background:var(--card);border:1px solid var(--border);border-radius:7px;padding:0;display:flex;flex-direction:row;gap:0;transition:border-color .2s,transform .2s;overflow:hidden;text-decoration:none;color:inherit}
 .news-card:hover{border-color:var(--border2);transform:translateY(-1px)}
+/* Featured card — spans all columns, larger */
+.news-featured{grid-column:1/-1}
+.news-featured .news-title{font-size:.95rem;line-height:1.5;-webkit-line-clamp:4}
+.news-featured .news-card-body{padding:1.1rem 1.2rem}
+/* Thumbnail image (featured only) */
+.news-img-wrap{width:320px;flex-shrink:0;overflow:hidden;background:var(--card2)}
+.news-img-wrap img{width:100%;height:100%;object-fit:cover;display:block;min-height:160px}
+@media(max-width:800px){.news-img-wrap{display:none}}
+/* Card body */
+.news-card-body{padding:.8rem .9rem;display:flex;flex-direction:column;gap:.4rem;flex:1;min-width:0}
 .news-card-top{display:flex;align-items:center;justify-content:space-between}
 .news-source-badge{font-size:.58rem;font-weight:700;padding:.15rem .4rem;border-radius:3px;text-transform:uppercase;letter-spacing:.06em}
 .news-time{font-size:.6rem;color:var(--muted)}
 .news-title{font-size:.82rem;line-height:1.4;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.news-tickers{display:flex;gap:.3rem;flex-wrap:wrap}
-.news-ticker-tag{font-family:var(--mono);font-size:.6rem;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:3px;padding:.1rem .35rem;color:var(--muted)}
+.news-tickers{display:flex;gap:.3rem;flex-wrap:wrap;margin-top:auto;padding-top:.3rem}
+.news-ticker-tag{font-family:var(--mono);font-size:.6rem;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:3px;padding:.12rem .4rem;color:var(--muted);cursor:none;transition:border-color .15s,color .15s,background .15s;line-height:1.4}
+.news-ticker-tag:hover{border-color:var(--green);color:var(--green);background:rgba(0,255,136,.08)}
 /* ── MODAL ───────────────────────────────────────────────────────── */
 #modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;transition:opacity .25s,visibility .25s}
 #modal-overlay.open{opacity:1;visibility:visible}
@@ -443,13 +460,20 @@ body.clink #cring{width:44px;height:44px}
 .pulse-list{display:flex;flex-direction:column;gap:.4rem;margin-top:.75rem}
 .pulse-item{display:flex;align-items:flex-start;gap:.6rem;padding:.55rem .7rem;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:5px;text-decoration:none;transition:border-color .15s}
 .pulse-item:hover{border-color:var(--border2)}
-.pulse-ticker-tag{font-family:var(--mono);font-size:.58rem;font-weight:600;padding:.12rem .35rem;border-radius:3px;background:rgba(255,255,255,.06);white-space:nowrap;flex-shrink:0}
+.pulse-ticker-tag{font-family:var(--mono);font-size:.58rem;font-weight:600;padding:.12rem .35rem;border-radius:3px;background:rgba(255,255,255,.06);white-space:nowrap;flex-shrink:0;cursor:none;transition:background .15s,color .15s}
+.pulse-ticker-tag:hover{background:rgba(0,255,136,.12);color:var(--green)}
 .pulse-title{font-size:.74rem;line-height:1.35;color:var(--muted);flex:1}
 .pulse-sent-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:.3rem}
 .pulse-sent-dot.pos{background:var(--green)}
 .pulse-sent-dot.neg{background:var(--red)}
 .pulse-sent-dot.neu{background:rgba(255,255,255,.2)}
 .pulse-time{font-size:.58rem;color:var(--muted2);white-space:nowrap;flex-shrink:0}
+/* ── WATCHLIST ANALYSE LINK ──────────────────────────────────────── */
+.wl-analyse-link{font-size:.6rem;color:var(--muted2);text-align:right;margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--border);letter-spacing:.07em;text-transform:uppercase;transition:color .2s;cursor:none}
+.wl-card:hover .wl-analyse-link{color:var(--green)}
+/* ── HEATMAP CLICKABLE ───────────────────────────────────────────── */
+.hm-clickable{cursor:none;transition:filter .2s,outline .15s}
+.hm-clickable:hover{filter:brightness(1.25);outline:1px solid rgba(255,255,255,.3)}
 /* ── ETF LONG-TERM BADGES ────────────────────────────────────────── */
 .etf-badge{font-size:.58rem;color:var(--purple);background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.22);border-radius:3px;padding:.22rem .55rem;margin-top:.55rem;text-align:center;letter-spacing:.04em}
 /* ── ETF INFO BOX (Analyse Tab) ──────────────────────────────────── */

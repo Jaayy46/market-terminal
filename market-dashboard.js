@@ -348,11 +348,19 @@ async function fetchOneFeed(feed){
       const link=item.querySelector('link')?.textContent?.trim()||
                  item.querySelector('link')?.getAttribute('href')||'#';
       const pub=item.querySelector('pubDate')?.textContent||'';
-      const lower=title.toLowerCase();
+        const lower=title.toLowerCase();
       const tickers=Object.entries(TICKER_KW)
         .filter(([,kws])=>kws.some(kw=>lower.includes(kw)))
         .map(([t])=>t);
-      return {title,link,pub,source:feed.name,color:feed.color,tickers};
+      // Extract thumbnail image from RSS
+      let img=null;
+      try{
+        const mc=item.getElementsByTagNameNS('*','content')[0]||item.getElementsByTagNameNS('*','thumbnail')[0];
+        if(mc?.getAttribute('url')) img=mc.getAttribute('url');
+        if(!img){const enc=item.querySelector('enclosure');if(enc?.getAttribute('type')?.startsWith('image')) img=enc.getAttribute('url');}
+        if(!img){const m=(item.querySelector('description')?.textContent||'').match(/<img[^>]+src=["']([^"']+)["']/i);if(m) img=m[1];}
+      }catch{}
+      return {title,link,pub,source:feed.name,color:feed.color,tickers,img};
     });
   }catch{ return []; }
 }
@@ -508,7 +516,8 @@ function renderHeatmap(){
     const pct=q?.changePct||0;
     const bg=pctToHeat(pct);
     const label=item.name||item.ticker;
-    return `<div class="hm-tile" style="background:${bg}">
+    const isWl=CFG.watchlist.some(w=>w.ticker===item.ticker);
+    return `<div class="hm-tile${isWl?' hm-clickable':''}" style="background:${bg}"${isWl?` onclick="goToAnalyse('${item.ticker}')" title="Tiefenanalyse öffnen"`:''}>
       <div class="hm-sym">${item.ticker.replace('-USD','').replace('.SW','').replace('.DE','').replace('.L','').replace('^','')}</div>
       <div class="hm-pct">${fmt.pct(pct)}</div>
     </div>`;
@@ -549,7 +558,7 @@ function renderWatchlist(){
     const closesToUse=S.charts[w.ticker]||[];
     const chartColor=cc==='up'?'#00ff88':cc==='dn'?'#ff4757':'#ffd700';
     const yfUrl=`https://finance.yahoo.com/quote/${encodeURIComponent(w.ticker)}`;
-    return `<div class="wl-card" data-type="${w.type}">
+    return `<div class="wl-card" data-type="${w.type}" onclick="if(!event.target.closest('a,button')) goToAnalyse('${w.ticker}')" style="cursor:default">
       <div class="wl-card-top">
         <div class="wl-card-left">
           <div class="type-dot ${w.type}"></div>
@@ -591,6 +600,7 @@ function renderWatchlist(){
         }
       </div>
       ${w.type==='etf'?'<div class="etf-badge">📈 Langfrist 10–15J · Sparplan · kein Stop-Loss</div>':''}
+      <div class="wl-analyse-link" onclick="event.stopPropagation();goToAnalyse('${w.ticker}')">Tiefenanalyse →</div>
       ${(()=>{
         const recent=tickerNews(w.ticker,2);
         if(!recent.length) return '';
@@ -1138,15 +1148,26 @@ function renderNews(){
     grid.innerHTML=`<div class="empty-state" style="grid-column:1/-1"><p>Lade Nachrichten…</p></div>`;
     return;
   }
-  grid.innerHTML=items.slice(0,40).map(n=>`
-    <a class="news-card" href="${n.link}" target="_blank" rel="noopener">
-      <div class="news-card-top">
-        <span class="news-source-badge" style="background:${n.color}22;color:${n.color};border:1px solid ${n.color}44">${n.source}</span>
-        <span class="news-time">${fmt.rel(n.pub)}</span>
+  function tickerBtns(tickers){
+    if(!tickers.length) return '';
+    return `<div class="news-tickers">${tickers.map(t=>`<span class="news-ticker-tag" onclick="event.stopPropagation();goToAnalyse('${t}')">${t}</span>`).join('')}</div>`;
+  }
+  function buildCard(n, isFeatured=false){
+    const sent=articleSent(n.title);
+    return `<a class="news-card${isFeatured?' news-featured':''}" href="${n.link}" target="_blank" rel="noopener">
+      <div class="news-sent-bar ${sent}"></div>
+      ${isFeatured&&n.img?`<div class="news-img-wrap"><img src="${n.img}" alt="" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`:''}
+      <div class="news-card-body">
+        <div class="news-card-top">
+          <span class="news-source-badge" style="background:${n.color}22;color:${n.color};border:1px solid ${n.color}44">${n.source}</span>
+          <span class="news-time">${fmt.rel(n.pub)}</span>
+        </div>
+        <div class="news-title">${n.title}</div>
+        ${tickerBtns(n.tickers)}
       </div>
-      <div class="news-title">${n.title}</div>
-      ${n.tickers.length?`<div class="news-tickers">${n.tickers.map(t=>`<span class="news-ticker-tag">${t}</span>`).join('')}</div>`:''}
-    </a>`).join('');
+    </a>`;
+  }
+  grid.innerHTML=items.slice(0,40).map((n,i)=>buildCard(n,i===0)).join('');
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1154,6 +1175,7 @@ function renderNews(){
 // ═══════════════════════════════════════════════════════════════════
 function openModal(html){ if(html!=null) document.getElementById('modal-card').innerHTML=html; document.getElementById('modal-overlay').classList.add('open'); }
 function closeModal(){ document.getElementById('modal-overlay').classList.remove('open'); }
+function goToAnalyse(ticker){ switchTab('analyse'); loadAndRenderAnalyse(ticker); }
 
 // ═══════════════════════════════════════════════════════════════════
 //  TOASTS
@@ -1217,7 +1239,7 @@ function renderPulse(){
     const sent=articleSent(n.title);
     return `<a class="pulse-item" href="${n.link}" target="_blank" rel="noopener">
       <div class="pulse-sent-dot ${sent}"></div>
-      ${ticker?`<span class="pulse-ticker-tag" style="color:${typeColor[type]||'var(--muted)'};border:1px solid ${typeColor[type]||'var(--border)'}33">${ticker}</span>`:''}
+      ${ticker?`<span class="pulse-ticker-tag" style="color:${typeColor[type]||'var(--muted)'};border:1px solid ${typeColor[type]||'var(--border)'}33" onclick="event.stopPropagation();event.preventDefault();goToAnalyse('${ticker}')">${ticker}</span>`:''}
       <span class="pulse-title">${n.title}</span>
       <span class="pulse-time">${fmt.rel(n.pub)}</span>
     </a>`;
@@ -2203,7 +2225,7 @@ function initCursor(){
   document.addEventListener('mouseenter',()=>{ dot.style.opacity='1'; ring.style.opacity='1'; });
   document.addEventListener('mouseleave',()=>{ dot.style.opacity='0'; ring.style.opacity='0'; });
   document.addEventListener('mouseover',e=>{
-    const hov=e.target.closest('a,button,.wl-card,.news-card,.chip,.kpi-card,.hm-tile');
+    const hov=e.target.closest('a,button,.wl-card,.news-card,.chip,.kpi-card,.hm-clickable,.news-ticker-tag,.pulse-ticker-tag,.wl-analyse-link');
     document.body.classList.toggle('chover',!!hov);
   });
   document.addEventListener('mousedown',()=>document.body.classList.add('clink'));
