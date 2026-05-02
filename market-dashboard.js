@@ -1202,7 +1202,11 @@ async function masterRefresh(){
   const btn=document.getElementById('refresh-btn');
   btn.classList.add('spinning');
   try{
-    await fetchAllData();
+    // Overall 30s timeout so mobile never hangs forever
+    await Promise.race([
+      fetchAllData(),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),30000))
+    ]);
     S.lastRefresh=Date.now();
     renderAll();
     checkAlerts();
@@ -1210,6 +1214,8 @@ async function masterRefresh(){
     if(!hasData) toast('Keine Kursdaten — prüfe die Browser-Konsole (F12)','t-error');
   }catch(e){
     console.error('Refresh error:',e);
+    // Still render with whatever cached data is available
+    if(Object.keys(S.quotes).length) renderAll();
     toast('Aktualisierung fehlgeschlagen — erneuter Versuch in 60s','t-error');
   }finally{
     btn.classList.remove('spinning');
@@ -2306,7 +2312,9 @@ function initEvents(){
 //  INIT
 // ═══════════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded',async()=>{
-  initCursor();
+  // Skip mouse cursor on touch devices
+  if(!('ontouchstart' in window)) initCursor();
+
   loadPersistedState();
   startClock();
   renderMktBadges();
@@ -2342,11 +2350,18 @@ document.addEventListener('DOMContentLoaded',async()=>{
     document.getElementById('notif-prompt').classList.add('hidden');
   }
 
-  // Render skeleton with cached news
+  // Render skeleton with cached news / cached quotes
   if(S.news.length) renderNews();
+  if(Object.keys(S.quotes).length) renderAll();
+
+  // Failsafe: hide loader after 12s regardless of API result
+  const loaderTimeout=setTimeout(()=>{
+    document.getElementById('loader').classList.add('out');
+  },12000);
 
   // Fetch live data
   await masterRefresh();
+  clearTimeout(loaderTimeout);
 
   // Fetch news in background
   fetchAllNews();
