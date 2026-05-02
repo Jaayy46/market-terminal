@@ -335,15 +335,74 @@ body.clink #cring{width:44px;height:44px}
 ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.2)}
 /* ── RESPONSIVE ──────────────────────────────────────────────────── */
 @media(max-width:640px){
-  #hdr{grid-template-columns:auto 1fr;gap:.5rem;padding:0 .75rem}
-  #hdr-right{gap:.5rem}
+  /* Header: hide ticker, stack logo + controls */
+  #hdr{grid-template-columns:auto auto;justify-content:space-between;gap:.5rem;padding:0 .85rem}
+  #ticker-wrap{display:none}
   #clocks{display:none}
   .mkt-badges{display:none}
+  #hdr-right{gap:.5rem}
+  /* Refresh btn: icon only, hide text */
+  #refresh-btn{font-size:0;padding:.35rem .45rem;min-width:0;gap:0}
+  #refresh-btn svg{width:14px;height:14px}
+
+  /* Tab nav: smaller font, tighter padding so all tabs fit */
+  .tab-btn{padding:0 .75rem;font-size:.65rem;letter-spacing:.05em}
+
+  /* Content */
   #content{padding:1rem .75rem 3rem}
-  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+
+  /* KPI grid: 2 columns, smaller font */
+  .kpi-grid{grid-template-columns:repeat(2,1fr);gap:.5rem}
+  .kpi-price{font-size:1.1rem}
+  .kpi-card{padding:.8rem .85rem}
+
+  /* Overview layouts → 1 column */
   .overview-lower{grid-template-columns:1fr}
   .overview-bottom-row{grid-template-columns:1fr}
+
+  /* Watchlist → 1 column */
   .wl-grid{grid-template-columns:1fr}
+
+  /* News → 1 column, no image on featured */
+  .news-grid{grid-template-columns:1fr}
+  .news-featured{grid-column:1/-1;flex-direction:column}
+  .news-img-wrap{display:none}
+  .news-featured .news-title{font-size:.88rem}
+
+  /* Signals table: hide less-critical columns on mobile */
+  /* Keep: Ticker(1), Tag%(5), Signal(8) */
+  #signals-table th:nth-child(2),#signals-table td:nth-child(2),
+  #signals-table th:nth-child(3),#signals-table td:nth-child(3),
+  #signals-table th:nth-child(4),#signals-table td:nth-child(4),
+  #signals-table th:nth-child(6),#signals-table td:nth-child(6),
+  #signals-table th:nth-child(7),#signals-table td:nth-child(7),
+  #signals-table th:nth-child(9),#signals-table td:nth-child(9),
+  #signals-table th:nth-child(10),#signals-table td:nth-child(10),
+  #signals-table th:nth-child(11),#signals-table td:nth-child(11){display:none}
+  .data-table td{padding:.55rem .65rem}
+  .data-table th{padding:.55rem .65rem}
+
+  /* Analyse: single column */
+  .analyse-grid{grid-template-columns:1fr}
+  .analyse-top{flex-direction:column;align-items:flex-start}
+  .hist-wrap{height:180px}
+
+  /* Portfolio */
+  .port-lower{grid-template-columns:1fr}
+  .port-summary{grid-template-columns:repeat(2,1fr)}
+  .orders-grid{grid-template-columns:1fr 1fr}
+
+  /* Alerts + Notifications */
+  #notif-prompt{flex-direction:column;gap:.6rem}
+  .alert-item{grid-template-columns:1fr}
+
+  /* Modal */
+  .modal-card{max-width:calc(100vw - 2rem);padding:1.25rem}
+  .form-row{grid-template-columns:1fr}
+
+  /* Toasts */
+  #toasts{left:1rem;right:1rem;bottom:1rem}
+  .toast{min-width:0;max-width:100%}
 }
 /* ── EMPTY STATE ─────────────────────────────────────────────────── */
 .empty-state{text-align:center;padding:3rem 1rem;color:var(--muted)}
