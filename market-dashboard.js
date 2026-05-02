@@ -1771,7 +1771,8 @@ function scoreTechnical(ticker){
   const d={};let score=0;
   // RSI
   const rsiArr=calcRSI(closes);
-  const rsi=rsiArr.filter(x=>x!=null).at(-1);
+  const rsiFiltered=rsiArr.filter(x=>x!=null);
+  const rsi=rsiFiltered[rsiFiltered.length-1];
   d.rsi=rsi!=null?+rsi.toFixed(1):null;
   if(rsi!=null){
     if(rsi<30)      score+=28;
@@ -1780,8 +1781,10 @@ function scoreTechnical(ticker){
     else if(rsi<70) score+=5;
   }
   // Moving averages
-  const ma50=calcMA(closes,50).filter(x=>x!=null).at(-1);
-  const ma200=calcMA(closes,200).filter(x=>x!=null).at(-1);
+  const ma50Arr=calcMA(closes,50).filter(x=>x!=null);
+  const ma200Arr=calcMA(closes,200).filter(x=>x!=null);
+  const ma50=ma50Arr[ma50Arr.length-1];
+  const ma200=ma200Arr[ma200Arr.length-1];
   const price=q?.price;
   d.ma50=ma50!=null?+ma50.toFixed(2):null;
   d.ma200=ma200!=null?+ma200.toFixed(2):null;
@@ -1801,15 +1804,15 @@ function scoreTechnical(ticker){
     else if(p52v<=70) score+=4;
   }
   // Momentum
-  const m1=closes.length>=22?((closes.at(-1)-closes.at(-22))/closes.at(-22))*100:null;
-  const m3=closes.length>=63?((closes.at(-1)-closes.at(-63))/closes.at(-63))*100:null;
+  const m1=closes.length>=22?((closes[closes.length-1]-closes[closes.length-22])/closes[closes.length-22])*100:null;
+  const m3=closes.length>=63?((closes[closes.length-1]-closes[closes.length-63])/closes[closes.length-63])*100:null;
   d.mom1m=m1!=null?+m1.toFixed(2):null;
   d.mom3m=m3!=null?+m3.toFixed(2):null;
   if(m1>3)score+=10;else if(m1>0)score+=5;
   if(m3>8)score+=7;else if(m3>0)score+=3;
   // Volume relative to 20d avg
   if(bars.length>=20){
-    const lastV=bars.at(-1).v||0;
+    const lastV=(bars[bars.length-1].v)||0;
     const avgV=bars.slice(-20).reduce((a,b)=>a+(b.v||0),0)/20;
     d.volRatio=avgV>0?+(lastV/avgV).toFixed(2):null;
     if(lastV>avgV*1.2)score+=5;
@@ -1895,7 +1898,7 @@ function scoreMomentum(ticker){
   const bars=S.history[ticker+'1y']?.data||[];
   const c=bars.map(b=>b.c);
   let score=0; const d={};
-  const ret=n=>c.length>n?((c.at(-1)-c.at(-n))/c.at(-n))*100:null;
+  const ret=n=>c.length>n?((c[c.length-1]-c[c.length-n])/c[c.length-n])*100:null;
   d.w1=ret(5)!=null?+ret(5).toFixed(2):null;
   d.m1=ret(22)!=null?+ret(22).toFixed(2):null;
   d.m3=ret(63)!=null?+ret(63).toFixed(2):null;
@@ -1926,7 +1929,7 @@ function computeAnalysis(ticker){
   const composite=isEtf
     ? Math.round(0.20*tech.score+0.40*macro.score+0.15*sent.score+0.25*mom.score)
     : Math.round(0.40*tech.score+0.30*macro.score+0.20*sent.score+0.10*mom.score);
-  const verdict=VERDICTS.find(v=>composite>=v.min)||VERDICTS.at(-1);
+  const verdict=VERDICTS.find(v=>composite>=v.min)||VERDICTS[VERDICTS.length-1];
   return {composite,verdict,tech,macro,sent,mom,isEtf};
 }
 function scoreColor(s){
