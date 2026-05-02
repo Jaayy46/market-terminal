@@ -2358,9 +2358,13 @@ document.addEventListener('DOMContentLoaded',async()=>{
   if(Object.keys(S.quotes).length) renderAll();
 
   // Failsafe: hide loader after 12s regardless of API result
-  const loaderTimeout=setTimeout(()=>{
-    document.getElementById('loader').classList.add('out');
-  },12000);
+  function hideLoader(){
+    const l=document.getElementById('loader');
+    if(!l) return;
+    l.classList.add('out');
+    setTimeout(()=>{ l.style.display='none'; },900); // force after transition
+  }
+  const loaderTimeout=setTimeout(hideLoader,12000);
 
   // Fetch live data
   await masterRefresh();
@@ -2374,5 +2378,5 @@ document.addEventListener('DOMContentLoaded',async()=>{
   setInterval(masterRefresh,CFG.refreshInterval);
 
   // Loader out
-  setTimeout(()=>document.getElementById('loader').classList.add('out'),800);
+  setTimeout(hideLoader,300);
 });

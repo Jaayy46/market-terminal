@@ -6,9 +6,25 @@
 <meta name="theme-color" content="#080808">
 <meta name="color-scheme" content="dark">
 <title>Market Terminal — Livio Raschle</title>
+<!-- Critical inline CSS: loader visible instantly, no external CSS required -->
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#080808;color:#e8eaf0;font-family:system-ui,-apple-system,sans-serif;height:100%}
+#loader{position:fixed;inset:0;background:#080808;z-index:9990;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:.8rem;transition:opacity .8s ease,visibility .8s}
+#loader.out{opacity:0;visibility:hidden;pointer-events:none}
+.ld-title{font-size:clamp(1rem,3vw,1.5rem);font-weight:300;letter-spacing:.3em;text-transform:uppercase;color:#e8eaf0;opacity:0;animation:ldFade .5s ease .1s forwards}
+.ld-sub{font-size:.7rem;letter-spacing:.2em;color:#6b7280;text-transform:uppercase;opacity:0;animation:ldFade .4s ease .3s forwards}
+.ld-bar{width:0;height:1px;background:#00ff88;animation:ldBar .7s ease .5s forwards}
+#cdot,#cring{display:none}
+@keyframes ldFade{to{opacity:1}}
+@keyframes ldBar{to{width:200px}}
+</style>
+<!-- Fonts: async, non-blocking -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"></noscript>
+<!-- Main CSS: non-critical, loads in parallel -->
 <link rel="stylesheet" href="market-dashboard.css">
 </head>
 <body>
@@ -245,7 +261,7 @@
     </div>
   </section>
 </main>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-<script src="market-dashboard.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
+<script src="market-dashboard.js" defer></script>
 </body>
 </html>
