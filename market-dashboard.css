@@ -149,16 +149,16 @@ body.clink #cring{width:44px;height:44px}
 .hm-sym{font-family:var(--mono);font-size:.68rem;font-weight:500;color:rgba(255,255,255,.9)}
 .hm-pct{font-family:var(--mono);font-size:.62rem;color:rgba(255,255,255,.75)}
 /* ── SENTIMENT GAUGE ─────────────────────────────────────────────── */
-#sentiment-card{border:1px solid var(--border);border-radius:8px;padding:1rem;background:var(--card);display:flex;flex-direction:column;align-items:stretch}
-#gauge-svg{width:100%;max-width:200px;height:auto;margin:0 auto .5rem;display:block}
+#sentiment-card{border:1px solid var(--border);border-radius:8px;padding:1rem;background:var(--card);display:flex;flex-direction:column;align-items:center}
+#gauge-svg{width:100%;max-width:200px;height:auto;margin-bottom:.5rem;display:block}
 .gauge-track{fill:none;stroke:rgba(255,255,255,.06);stroke-width:12;stroke-linecap:round}
 .gauge-fill{fill:none;stroke-width:12;stroke-linecap:round;transition:stroke-dashoffset .8s var(--ease),stroke .5s}
-.gauge-labels{display:flex;justify-content:space-between;width:100%;font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.6rem}
+.gauge-labels{display:flex;justify-content:space-between;width:100%;max-width:200px;font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.6rem}
 #gauge-score-wrap{text-align:center;margin-bottom:.3rem}
 #gauge-score{font-size:2.2rem;font-weight:700;font-family:var(--mono);line-height:1}
 #gauge-label{font-size:.65rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;text-align:center;margin-bottom:.75rem}
 /* Gauge factor breakdown */
-.gauge-factors{display:grid;grid-template-columns:repeat(3,1fr);gap:.3rem;margin-top:auto;padding-top:.6rem;border-top:1px solid var(--border)}
+.gauge-factors{display:grid;grid-template-columns:repeat(3,1fr);gap:.3rem;margin-top:auto;padding-top:.6rem;border-top:1px solid var(--border);width:100%;max-width:220px}
 .gf-item{display:flex;flex-direction:column;align-items:center;gap:.15rem}
 .gf-lbl{font-size:.52rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted2)}
 .gf-val{font-family:var(--mono);font-size:.68rem;font-weight:600;color:var(--text)}
