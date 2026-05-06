@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0a0a0a">
+  <meta name="color-scheme" content="dark">
+  <title>Livio Raschle — Photography</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Raleway:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;1,200&display=swap" rel="stylesheet">
+  <style>
+  :root {
+    --bg:     #0a0a0a;
+    --text:   #f0ece4;
+    --muted:  rgba(240,236,228,.42);
+    --border: rgba(240,236,228,.08);
+    --gold:   #c8965a;
+    --ease:   cubic-bezier(0.16,1,0.3,1);
+  }
+
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);color:var(--text);
+    font-family:'Raleway',sans-serif;font-weight:300;
+    overflow-x:hidden;cursor:none;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* grain */
+  body::before{
+    content:'';position:fixed;inset:0;pointer-events:none;z-index:9980;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  }
+
+  /* ── LOADER ── */
+  #loader{
+    position:fixed;inset:0;background:var(--bg);z-index:9990;
+    display:flex;align-items:center;justify-content:center;flex-direction:column;gap:.8rem;
+    transition:opacity .9s var(--ease),visibility .9s;
+  }
+  #loader.out{opacity:0;visibility:hidden;pointer-events:none}
+  .ld-name{
+    font-family:'Raleway',sans-serif;font-weight:300;font-size:clamp(1.4rem,4vw,2.8rem);
+    letter-spacing:.12em;text-transform:uppercase;color:var(--text);
+    opacity:0;animation:ldFade .5s var(--ease) .15s forwards;
+  }
+  .ld-bar{width:0;height:2px;background:var(--gold);animation:ldBar .6s var(--ease) .4s forwards}
+  @keyframes ldFade{to{opacity:.9}}
+  @keyframes ldBar{to{width:180px}}
+
+  /* ── BG ── */
+  #bg{position:fixed;inset:0;z-index:-1;background:var(--bg);transition:background 1.4s cubic-bezier(.25,.46,.45,.94)}
+
+  /* ── CURSOR ── */
+  #cdot{
+    position:fixed;z-index:9998;width:8px;height:8px;
+    background:var(--text);border-radius:50%;
+    transform:translate(-50%,-50%);pointer-events:none;
+    mix-blend-mode:difference;transition:width .3s,height .3s;
+  }
+  #cring{
+    position:fixed;z-index:9997;width:46px;height:46px;
+    border:1px solid rgba(240,236,228,.3);border-radius:50%;
+    transform:translate(-50%,-50%);pointer-events:none;
+    transition:width .35s var(--ease),height .35s var(--ease),border-color .3s;
+  }
+  body.chover #cdot{width:4px;height:4px}
+  body.chover #cring{width:72px;height:72px;border-color:rgba(200,150,90,.65)}
+  body.clink  #cring{width:56px;height:56px}
+
+  /* ── PROGRESS ── */
+  #prog{position:fixed;right:1.8rem;top:50%;transform:translateY(-50%);width:1px;height:90px;background:var(--border);z-index:500}
+  #pfill{position:absolute;top:0;left:0;width:100%;height:0%;background:var(--gold);transition:height .08s linear}
+
+  /* ── NAV ── */
+  nav{
+    position:fixed;top:0;left:0;right:0;z-index:800;
+    display:flex;justify-content:space-between;align-items:center;
+    padding:1.6rem 3.5rem;mix-blend-mode:difference;
+  }
+  .nav-logo{
+    font-family:'Raleway',sans-serif;font-weight:300;font-size:.78rem;
+    letter-spacing:.32em;text-transform:uppercase;color:var(--text);text-decoration:none;
+  }
+  .nav-logo:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+  .mbtn{
+    background:none;border:none;cursor:none;
+    display:flex;flex-direction:column;gap:5px;padding:4px;
+  }
+  .mbtn:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+  .mbtn span{display:block;width:26px;height:1.5px;background:var(--text);transition:transform .4s var(--ease),opacity .3s,width .3s;transform-origin:center}
+  .mbtn.open span:nth-child(1){transform:translateY(6.5px) rotate(45deg)}
+  .mbtn.open span:nth-child(2){opacity:0;width:0}
+  .mbtn.open span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg)}
+
+  /* ── MENU OVERLAY ── */
+  #moverlay{
+    position:fixed;inset:0;background:rgba(10,10,10,.97);z-index:700;
+    display:flex;align-items:center;padding:0 3.5rem;
+    opacity:0;visibility:hidden;transition:opacity .45s var(--ease),visibility .45s;
+  }
+  #moverlay.open{opacity:1;visibility:visible}
+  .mlist{list-style:none}
+  .mitem{overflow:hidden;margin-bottom:.3rem}
+  .mlink{
+    display:block;text-decoration:none;color:var(--text);
+    font-family:'Raleway',sans-serif;font-weight:200;
+    font-size:clamp(2.2rem,5.5vw,5.5rem);
+    letter-spacing:-.01em;text-transform:uppercase;
+    transform:translateY(110%);transition:transform .55s var(--ease),color .25s;
+  }
+  #moverlay.open .mlink{transform:translateY(0)}
+  .mitem:nth-child(1) .mlink{transition-delay:.04s}
+  .mitem:nth-child(2) .mlink{transition-delay:.08s}
+  .mitem:nth-child(3) .mlink{transition-delay:.12s}
+  .mitem:nth-child(4) .mlink{transition-delay:.16s}
+  .mitem:nth-child(5) .mlink{transition-delay:.20s}
+  .mitem:nth-child(6) .mlink{transition-delay:.24s}
+  .mitem:nth-child(7) .mlink{transition-delay:.28s}
+  .mlink:hover{color:var(--gold)}
+  .mlink:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+  .mnum{font-size:.55rem;letter-spacing:.3em;font-weight:400;font-family:'Raleway',sans-serif;opacity:.35;margin-right:.8rem;vertical-align:.15em}
+  .minfo{position:absolute;bottom:2.5rem;right:3.5rem;font-size:.6rem;letter-spacing:.25em;text-transform:uppercase;opacity:.25;font-family:'Raleway',sans-serif}
+
+  /* ── HERO ── */
+  #hero{position:relative;height:100vh;min-height:600px;display:flex;align-items:flex-end;overflow:hidden}
+  .hero-img{position:absolute;top:-10%;left:0;width:100%;height:120%;object-fit:cover;filter:brightness(.4) saturate(1.1);will-change:transform}
+  .hero-grad{position:absolute;inset:0;background:linear-gradient(to top,rgba(10,10,10,.92) 0%,rgba(10,10,10,.15) 55%,transparent 100%)}
+  .hero-content{
+    position:relative;z-index:2;padding:0 3.5rem 4.5rem;width:100%;
+    display:grid;grid-template-columns:1fr auto;align-items:flex-end;gap:2rem;
+  }
+  .hero-eye{
+    display:block;font-family:'Raleway',sans-serif;font-weight:400;font-size:.62rem;
+    letter-spacing:.55em;text-transform:uppercase;color:var(--gold);margin-bottom:1.2rem;
+    animation:up 1s var(--ease) .8s both;
+  }
+  .hero-h1{
+    font-family:'Raleway',sans-serif;font-weight:200;
+    font-size:clamp(3.2rem,8vw,9.5rem);line-height:.9;
+    letter-spacing:.06em;text-transform:uppercase;
+  }
+  .hl{display:block;overflow:hidden}
+  .hl span{display:block;animation:up 1.1s var(--ease) both}
+  .hl:nth-child(1) span{animation-delay:.9s}
+  .hl:nth-child(2) span{animation-delay:1.05s}
+  .hero-right{text-align:right;animation:up 1s var(--ease) 1.2s both}
+  .hero-tag{display:block;font-family:'Raleway',sans-serif;font-size:.65rem;letter-spacing:.3em;text-transform:uppercase;opacity:.35;line-height:2.2}
+  .hero-scroll{margin-top:1.8rem;display:flex;flex-direction:column;align-items:flex-end;gap:.5rem}
+  .hs-txt{font-size:.58rem;letter-spacing:.42em;text-transform:uppercase;opacity:.28;font-family:'Raleway',sans-serif}
+  .hs-bar{width:1px;height:54px;background:linear-gradient(to bottom,var(--gold),transparent);animation:sp 2.5s ease infinite}
+  @keyframes sp{0%,100%{opacity:.6;transform:scaleY(1)}50%{opacity:.15;transform:scaleY(.4)}}
+  @keyframes up{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
+
+  /* ── SECTION ── */
+  .section{position:relative;padding:9rem 3.5rem;min-height:100vh}
+  .sec-hdr{display:grid;grid-template-columns:1fr 1fr;gap:3rem;margin-bottom:5.5rem;align-items:end}
+  .sec-lbl{
+    display:block;font-family:'Raleway',sans-serif;font-weight:400;
+    font-size:.58rem;letter-spacing:.55em;text-transform:uppercase;
+    color:var(--gold);margin-bottom:1rem;
+  }
+  .sec-h2{
+    font-family:'Raleway',sans-serif;font-weight:200;
+    font-size:clamp(2.8rem,6.5vw,7.5rem);line-height:.9;
+    letter-spacing:.04em;text-transform:uppercase;overflow:hidden;
+  }
+  .stl{display:block;transform:translateY(108%);transition:transform 1s var(--ease)}
+  .stl.l2{transition-delay:.07s}
+  .section.vis .stl{transform:translateY(0)}
+  .sec-desc{font-family:'Raleway',sans-serif;font-size:.82rem;line-height:1.95;color:var(--muted);max-width:300px}
+  .ghost{
+    position:absolute;top:5.5rem;left:3rem;
+    font-family:'Raleway',sans-serif;font-weight:200;
+    font-size:clamp(7rem,17vw,18rem);line-height:1;
+    text-transform:uppercase;letter-spacing:-.04em;
+    color:var(--text);opacity:.018;pointer-events:none;user-select:none;
+  }
+
+  /* ── CARD ── */
+  .card{position:relative;overflow:hidden;cursor:pointer;background:#111;box-shadow:0 4px 32px rgba(0,0,0,.4)}
+  .card img{width:100%;height:100%;object-fit:cover;display:block;filter:brightness(.78);transition:transform 1s var(--ease),filter .6s;will-change:transform}
+  .card:hover img{transform:scale(1.06);filter:brightness(1)}
+  .card:hover{box-shadow:0 16px 56px rgba(0,0,0,.6)}
+  .card:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .cap{
+    position:absolute;inset:0;
+    background:linear-gradient(to top,rgba(10,10,10,.7) 0%,transparent 50%);
+    opacity:0;transition:opacity .35s;
+    display:flex;align-items:flex-end;padding:1.2rem 1.4rem;
+    font-family:'Raleway',sans-serif;font-size:.6rem;letter-spacing:.25em;text-transform:uppercase;
+  }
+  .card:hover .cap{opacity:1}
+
+  /* fade-in */
+  .fi{opacity:0;transform:translateY(36px);transition:opacity .85s var(--ease),transform .85s var(--ease)}
+  .fi.vis{opacity:1;transform:translateY(0)}
+  .fi:nth-child(2){transition-delay:.06s}.fi:nth-child(3){transition-delay:.12s}
+  .fi:nth-child(4){transition-delay:.18s}.fi:nth-child(5){transition-delay:.24s}
+  .fi:nth-child(6){transition-delay:.30s}.fi:nth-child(7){transition-delay:.36s}
+  .fi:nth-child(8){transition-delay:.42s}.fi:nth-child(9){transition-delay:.48s}
+
+  /* divider */
+  .div{display:flex;align-items:center;gap:1.2rem;padding:0 3.5rem;opacity:.15}
+  .div-l{flex:1;height:1px;background:var(--text)}
+  .div-d{width:4px;height:4px;border-radius:50%;background:var(--gold);flex-shrink:0}
+
+  /* ══ 01 LANDSCHAFT ══ */
+  .ls-main{display:grid;grid-template-columns:1.5fr 1fr;grid-template-rows:500px 255px;gap:5px}
+  .ls-main .card:nth-child(1){grid-row:1/3}
+  .ls-r1{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-top:5px}
+  .ls-r1 .card{height:215px}
+  .ls-r2{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:5px}
+  .ls-r2 .card{height:215px}
+
+  /* ══ 02 KONZERTE ══ */
+  .kz-stage{display:grid;grid-template-columns:.5fr 1fr .5fr;gap:5px;align-items:end}
+  .kz-stage .card:nth-child(1){height:460px}
+  .kz-stage .card:nth-child(2){height:640px}
+  .kz-stage .card:nth-child(3){height:460px}
+  .kz-sub{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:5px}
+  .kz-sub .card{height:255px}
+
+  /* ══ 03 SPORT ══ */
+  .sp-col{position:relative;height:720px}
+  .spc{position:absolute;overflow:hidden;cursor:pointer}
+  .spc img{width:100%;height:100%;object-fit:cover;display:block;filter:brightness(.75);transition:transform 1s var(--ease),filter .5s;will-change:transform}
+  .spc:hover{z-index:10}
+  .spc:hover img{transform:scale(1.07);filter:brightness(1)}
+  .spc:focus-visible{outline:2px solid var(--gold);outline-offset:2px;z-index:10}
+  .spc:nth-child(1){top:0;left:0;width:45%;height:59%;clip-path:polygon(0 0,100% 0,87% 100%,0 100%)}
+  .spc:nth-child(2){top:7%;left:38%;width:33%;height:52%;clip-path:polygon(13% 0,100% 0,100% 100%,0 100%)}
+  .spc:nth-child(3){top:4%;right:0;width:28%;height:62%}
+  .spc:nth-child(4){bottom:0;left:3%;width:37%;height:48%;clip-path:polygon(0 0,86% 0,100% 100%,0 100%)}
+  .spc:nth-child(5){bottom:0;left:37%;width:30%;height:43%}
+  .sp-sub{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:5px}
+  .sp-sub .card{height:230px}
+
+  /* ══ 04 MOTORSPORT — auto-scroll strip ══ */
+  .ms-strip{position:relative;height:480px;overflow:hidden}
+  .ms-strip::before,.ms-strip::after{content:'';position:absolute;top:0;width:120px;height:100%;z-index:2;pointer-events:none}
+  .ms-strip::before{left:0;background:linear-gradient(to right,#0f0000,transparent)}
+  .ms-strip::after{right:0;background:linear-gradient(to left,#0f0000,transparent)}
+  .ms-inner{display:flex;gap:5px;height:100%;width:max-content;animation:mscroll 28s linear infinite}
+  .ms-inner:hover{animation-play-state:paused}
+  @keyframes mscroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+  .ms-inner .card{height:100%;flex-shrink:0}
+  .ms-inner .card:nth-child(odd){width:750px}
+  .ms-inner .card:nth-child(even){width:420px}
+
+  /* ══ 05 WILDLIFE ══ */
+  .wl-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:1.5rem;align-items:start;margin-bottom:2rem}
+  .wl-grid .card{height:680px}
+  .wl-text{padding-top:.5rem}
+  .wl-badge{
+    display:inline-block;border:1.5px solid rgba(200,150,90,.35);color:var(--gold);
+    font-family:'Raleway',sans-serif;font-weight:600;font-size:.6rem;
+    letter-spacing:.35em;text-transform:uppercase;padding:.45rem 1.1rem;margin-bottom:2.2rem;
+  }
+  .wl-q{
+    font-family:'Raleway',sans-serif;font-weight:300;
+    font-size:clamp(1.2rem,2.2vw,1.8rem);line-height:1.45;
+    margin-bottom:2rem;
+  }
+  .wl-rule{width:36px;height:2px;background:var(--gold);margin-bottom:1.6rem}
+  .wl-body{font-family:'Raleway',sans-serif;font-size:.8rem;line-height:2;color:var(--muted);margin-bottom:.9rem}
+
+  /* ══ ls-r3 ══ */
+  .ls-r3{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:5px}
+  .ls-r3 .card{height:215px}
+
+  /* ══ 06 ARCHITEKTUR ══ */
+  .ar-grid{display:grid;grid-template-columns:1.25fr .75fr 1fr;grid-template-rows:370px 340px;gap:5px}
+  .ar-grid .card:nth-child(1){grid-column:1/3}
+  .ar-grid .card:nth-child(2){grid-column:3}
+  .ar-grid .card:nth-child(3){grid-column:1}
+  .ar-grid .card:nth-child(4){grid-column:2/4}
+  .ar-grid .card:nth-child(5){grid-column:1/4;height:280px;margin-top:5px}
+
+  /* ══ CONTACT ══ */
+  #contact{padding-bottom:5rem}
+  .ct-wrap{display:grid;grid-template-columns:1fr 1fr;gap:6rem;align-items:start}
+  .ct-eye{display:block;font-family:'Raleway',sans-serif;font-size:.58rem;letter-spacing:.5em;text-transform:uppercase;color:var(--gold);margin-bottom:1.4rem}
+  .ct-h2{font-family:'Raleway',sans-serif;font-weight:200;font-size:clamp(2.2rem,4.5vw,4.5rem);letter-spacing:.04em;text-transform:uppercase;line-height:.95;margin-bottom:2rem}
+  .ct-p{font-family:'Raleway',sans-serif;font-size:.8rem;line-height:2;color:var(--muted);margin-bottom:1rem}
+  .ct-mail{color:var(--text);text-decoration:none;font-size:.88rem;letter-spacing:.06em;border-bottom:1px solid var(--border);padding-bottom:.2em;transition:border-color .3s,color .3s}
+  .ct-mail:hover{border-color:var(--gold);color:var(--gold)}
+  .ct-mail:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+  .ct-soc{display:flex;gap:1.5rem;margin-top:2.5rem}
+  .ct-s{font-family:'Raleway',sans-serif;font-size:.6rem;letter-spacing:.3em;text-transform:uppercase;color:var(--muted);text-decoration:none;transition:color .3s}
+  .ct-s:hover{color:var(--gold)}
+  .ct-s:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+
+  form{display:flex;flex-direction:column;gap:1.7rem}
+  .fg{display:flex;flex-direction:column;gap:.5rem}
+  .fg label{font-family:'Raleway',sans-serif;font-size:.58rem;letter-spacing:.38em;text-transform:uppercase;color:var(--muted)}
+  .fg input,.fg textarea,.fg select{
+    background:transparent;border:none;border-bottom:1px solid var(--border);
+    color:var(--text);font-family:'Raleway',sans-serif;font-weight:300;font-size:.9rem;
+    padding:.7rem 0;outline:none;width:100%;transition:border-color .3s;
+  }
+  .fg input::placeholder,.fg textarea::placeholder{color:var(--muted);font-size:.85rem}
+  .fg input:focus,.fg textarea:focus{border-bottom-color:var(--gold)}
+  .fg textarea{min-height:100px;resize:none}
+  .fg select{appearance:none;cursor:pointer}
+  .fg select option{background:#111;color:var(--text)}
+  #ferr{color:#f87171;font-family:'Raleway',sans-serif;font-size:.72rem;display:none}
+  .sbtn{
+    align-self:flex-start;background:var(--text);color:#0a0a0a;border:none;
+    padding:.95rem 2.6rem;font-family:'Raleway',sans-serif;font-weight:500;
+    font-size:.68rem;letter-spacing:.28em;text-transform:uppercase;cursor:none;
+    transition:background .3s,transform .25s var(--ease);
+  }
+  .sbtn:hover{background:var(--gold);transform:translateY(-2px)}
+  .sbtn:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+  .sbtn.sent{background:#4ade80}
+
+  footer{
+    padding:2rem 3.5rem;display:flex;justify-content:space-between;align-items:center;
+    border-top:1px solid var(--border);
+    font-family:'Raleway',sans-serif;font-size:.58rem;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);
+  }
+
+  /* ── LIGHTBOX ── */
+  #lb{position:fixed;inset:0;background:rgba(10,10,10,.97);z-index:9000;display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;transition:opacity .45s var(--ease),visibility .45s}
+  #lb.open{opacity:1;visibility:visible}
+  #lb img{max-width:88vw;max-height:88vh;object-fit:contain;display:block;box-shadow:0 30px 100px rgba(0,0,0,.6)}
+  .lbx{position:absolute;top:1.8rem;right:2.2rem;width:3rem;height:3rem;cursor:none;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--text)}
+  .lbx::before,.lbx::after{content:'';position:absolute;width:1.8rem;height:1.5px;background:currentColor;transition:background .3s}
+  .lbx::before{transform:rotate(45deg)}.lbx::after{transform:rotate(-45deg)}
+  .lbx:hover::before,.lbx:hover::after{background:var(--gold)}
+  .lbx:focus-visible{outline:2px solid var(--gold)}
+  .lbnav{position:absolute;top:50%;transform:translateY(-50%);background:none;border:1px solid var(--border);color:var(--text);width:3rem;height:3rem;display:flex;align-items:center;justify-content:center;cursor:none;font-size:1rem;transition:border-color .3s,color .3s}
+  .lbnav:hover{border-color:var(--gold);color:var(--gold)}
+  .lbnav:focus-visible{outline:2px solid var(--gold)}
+  #lbprev{left:1.8rem}#lbnext{right:5.5rem}
+  #lbctr{position:absolute;bottom:1.8rem;left:50%;transform:translateX(-50%);font-family:'Raleway',sans-serif;font-size:.6rem;letter-spacing:.35em;color:var(--muted)}
+
+  /* ── HERO CTA ── */
+  .hero-cta{
+    display:inline-flex;align-items:center;gap:.8rem;margin-top:2.8rem;
+    font-family:'Raleway',sans-serif;font-weight:700;font-size:.68rem;
+    letter-spacing:.28em;text-transform:uppercase;color:var(--text);
+    text-decoration:none;border:1px solid rgba(240,236,228,.22);
+    padding:1rem 2.2rem;transition:background .35s var(--ease),border-color .35s,color .35s,transform .35s var(--ease);
+    animation:up 1s var(--ease) 1.3s both;
+  }
+  .hero-cta:hover{background:var(--gold);border-color:var(--gold);color:#0a0a0a;transform:translateY(-2px)}
+  .hero-cta:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+  .hero-cta-arr{display:inline-block;transition:transform .35s var(--ease)}
+  .hero-cta:hover .hero-cta-arr{transform:translateY(3px)}
+
+  /* ── HERO STATS ── */
+  .hero-stats{
+    display:flex;gap:2.5rem;margin-top:3rem;padding-top:2rem;
+    border-top:1px solid var(--border);
+    animation:up 1s var(--ease) 1.45s both;
+  }
+  .h-stat-val{
+    display:block;font-family:'Raleway',sans-serif;font-weight:800;
+    font-size:clamp(1.4rem,2.5vw,2rem);letter-spacing:-.04em;line-height:1;
+  }
+  .h-stat-lbl{
+    display:block;font-family:'Raleway',sans-serif;font-size:.54rem;
+    letter-spacing:.38em;text-transform:uppercase;color:var(--muted);margin-top:.4rem;
+  }
+
+  /* ── DOT NAV ── */
+  #dotnav{
+    position:fixed;left:1.6rem;top:50%;transform:translateY(-50%);
+    display:flex;flex-direction:column;gap:1rem;z-index:500;
+  }
+  .dn-item{
+    display:flex;align-items:center;gap:.9rem;cursor:pointer;
+    text-decoration:none;
+  }
+  .dn-dot{
+    width:4px;height:4px;border-radius:50%;flex-shrink:0;
+    background:rgba(240,236,228,.2);
+    transition:background .4s var(--ease),height .4s var(--ease),border-radius .4s var(--ease),transform .4s var(--ease);
+  }
+  .dn-item.act .dn-dot{background:var(--gold);height:20px;border-radius:2px}
+  .dn-lbl{
+    font-family:'Raleway',sans-serif;font-size:.5rem;letter-spacing:.25em;
+    text-transform:uppercase;color:var(--muted);white-space:nowrap;
+    opacity:0;transform:translateX(-4px);
+    transition:opacity .25s,transform .25s;pointer-events:none;
+  }
+  .dn-item:hover .dn-lbl,.dn-item.act .dn-lbl{opacity:1;transform:translateX(0)}
+  .dn-item.act .dn-lbl{color:var(--gold)}
+  .dn-item:focus-visible{outline:2px solid var(--gold);outline-offset:4px;border-radius:2px}
+
+  /* ── SEC BADGE ── */
+  .sec-badge{
+    display:inline-flex;align-items:center;gap:.55rem;margin-top:1.6rem;
+    border:1px solid var(--border);padding:.32rem .9rem;
+    font-family:'Raleway',sans-serif;font-size:.53rem;
+    letter-spacing:.28em;text-transform:uppercase;color:var(--muted);
+  }
+  .sec-badge-dot{width:4px;height:4px;border-radius:50%;background:var(--gold);flex-shrink:0}
+
+  /* ── REDUCED MOTION ── */
+  @media(prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+    .stl{transform:none}.fi{opacity:1;transform:none}#loader{display:none}
+  }
+
+  /* ── RESPONSIVE ── */
+  @media(max-width:1024px){
+    .ls-main{grid-template-columns:1fr;grid-template-rows:auto}.ls-main .card:nth-child(1){grid-row:auto;height:320px!important}
+    .ls-r1{grid-template-columns:repeat(3,1fr)}.ls-r2{grid-template-columns:repeat(2,1fr)}.ls-r3{grid-template-columns:repeat(2,1fr)}
+    .kz-stage{grid-template-columns:1fr}.kz-stage .card{height:300px!important}
+    .kz-sub{grid-template-columns:repeat(2,1fr)}
+    .wl-grid{grid-template-columns:1fr}.wl-grid .card{height:380px!important}
+    .ar-grid{grid-template-columns:1fr;grid-template-rows:auto}.ar-grid .card{grid-column:auto!important;height:270px!important}
+    .ms-strip::before,.ms-strip::after{width:60px}
+  }
+  @media(max-width:768px){
+    nav{padding:1.4rem 1.5rem;mix-blend-mode:normal}
+    .section{padding:6rem 1.5rem}
+    .sec-hdr{grid-template-columns:1fr;gap:1.2rem}
+    .ghost{font-size:clamp(5rem,25vw,10rem)}
+    .hero-content{padding:0 1.5rem 4rem;grid-template-columns:1fr}
+    .hero-right{display:none}
+    .ls-r1{grid-template-columns:repeat(2,1fr)}.ls-r2{grid-template-columns:repeat(2,1fr)}.ls-r3{grid-template-columns:repeat(2,1fr)}
+    .kz-sub{grid-template-columns:repeat(2,1fr)}
+    .sp-col{height:auto;display:flex;flex-direction:column;gap:5px}
+    .spc{position:static;width:100%!important;height:240px!important;clip-path:none!important}
+    .sp-sub{grid-template-columns:repeat(2,1fr)}
+    .ct-wrap{grid-template-columns:1fr;gap:3rem}
+    footer{flex-direction:column;gap:.8rem;text-align:center}
+    #prog{display:none}
+    #dotnav{display:none}
+    .hero-stats{gap:1.5rem}
+    #moverlay{padding:1.5rem}
+    .mlink{font-size:clamp(2rem,9vw,3.2rem)}
+    .minfo{display:none}
+  }
+  </style>
+</head>
+<body>
+
+<div id="loader" aria-hidden="true"><span class="ld-name">Livio Raschle</span><div class="ld-bar"></div></div>
+<div id="bg" aria-hidden="true"></div>
+<div id="cdot" aria-hidden="true"></div>
+<div id="cring" aria-hidden="true"></div>
+<div id="prog" aria-hidden="true" role="presentation"><div id="pfill"></div></div>
+
+<!-- DOT NAV -->
+<nav id="dotnav" aria-label="Sektionsnavigation">
+  <a href="#hero"        class="dn-item act" data-target="hero"        aria-label="Intro"><div class="dn-dot"></div><span class="dn-lbl">Intro</span></a>
+  <a href="#landschaft"  class="dn-item"     data-target="landschaft"  aria-label="Landschaft"><div class="dn-dot"></div><span class="dn-lbl">Landschaft</span></a>
+  <a href="#konzerte"    class="dn-item"     data-target="konzerte"    aria-label="Konzerte"><div class="dn-dot"></div><span class="dn-lbl">Konzerte</span></a>
+  <a href="#sport"       class="dn-item"     data-target="sport"       aria-label="Sport"><div class="dn-dot"></div><span class="dn-lbl">Sport</span></a>
+  <a href="#motorsport"  class="dn-item"     data-target="motorsport"  aria-label="Motorsport"><div class="dn-dot"></div><span class="dn-lbl">Motorsport</span></a>
+  <a href="#wildlife"    class="dn-item"     data-target="wildlife"    aria-label="Wildlife"><div class="dn-dot"></div><span class="dn-lbl">Wildlife</span></a>
+  <a href="#architektur" class="dn-item"     data-target="architektur" aria-label="Architektur"><div class="dn-dot"></div><span class="dn-lbl">Architektur</span></a>
+  <a href="#contact"     class="dn-item"     data-target="contact"     aria-label="Kontakt"><div class="dn-dot"></div><span class="dn-lbl">Kontakt</span></a>
+</nav>
+
+<!-- LIGHTBOX -->
+<div id="lb" role="dialog" aria-modal="true" aria-label="Bildansicht">
+  <button class="lbx" id="lbx" aria-label="Schliessen"></button>
+  <button class="lbnav" id="lbprev" aria-label="Vorheriges Bild">&#8592;</button>
+  <img id="lbimg" src="" alt="">
+  <button class="lbnav" id="lbnext" aria-label="Nächstes Bild">&#8594;</button>
+  <div id="lbctr" aria-live="polite"></div>
+</div>
+
+<!-- NAV -->
+<nav aria-label="Hauptnavigation">
+  <a href="#hero" class="nav-logo" aria-label="Livio Raschle — Startseite">Livio Raschle</a>
+  <button class="mbtn" id="mbtn" aria-expanded="false" aria-controls="moverlay" aria-label="Menü öffnen">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<!-- MENU OVERLAY -->
+<div id="moverlay" role="navigation" aria-label="Seitennavigation">
+  <ul class="mlist">
+    <li class="mitem"><a href="#landschaft"  class="mlink"><span class="mnum">01</span>Landschaft</a></li>
+    <li class="mitem"><a href="#konzerte"    class="mlink"><span class="mnum">02</span>Konzerte</a></li>
+    <li class="mitem"><a href="#sport"       class="mlink"><span class="mnum">03</span>Sport</a></li>
+    <li class="mitem"><a href="#motorsport"  class="mlink"><span class="mnum">04</span>Motorsport</a></li>
+    <li class="mitem"><a href="#wildlife"    class="mlink"><span class="mnum">05</span>Wildlife</a></li>
+    <li class="mitem"><a href="#architektur" class="mlink"><span class="mnum">06</span>Architektur</a></li>
+    <li class="mitem"><a href="#contact"     class="mlink"><span class="mnum">07</span>Kontakt</a></li>
+  </ul>
+  <p class="minfo">© 2025 Livio Raschle Photography</p>
+</div>
+
+<!-- HERO -->
+<section id="hero" aria-label="Portfolio Einleitung">
+  <img class="hero-img" id="hero-img" src="images/A7_06806.jpg" alt="Spiegelung der Alpengipfel im Bergsee, Appenzell" width="1920" height="1280">
+  <div class="hero-grad" aria-hidden="true"></div>
+  <div class="hero-content">
+    <div>
+      <span class="hero-eye">Fotografie Portfolio</span>
+      <h1 class="hero-h1">
+        <span class="hl"><span>Livio</span></span>
+        <span class="hl"><span>Raschle</span></span>
+      </h1>
+      <a href="#landschaft" class="hero-cta" aria-label="Portfolio entdecken">
+        Portfolio entdecken <span class="hero-cta-arr">↓</span>
+      </a>
+      <div class="hero-stats" aria-label="Portfolio Statistiken">
+        <div><span class="h-stat-val">65+</span><span class="h-stat-lbl">Bilder</span></div>
+        <div><span class="h-stat-val">6</span><span class="h-stat-lbl">Kategorien</span></div>
+        <div><span class="h-stat-val">4+</span><span class="h-stat-lbl">Jahre</span></div>
+      </div>
+    </div>
+    <div class="hero-right">
+      <span class="hero-tag">Momente · Emotionen</span>
+      <span class="hero-tag">Geschichten · Schweiz</span>
+      <div class="hero-scroll" aria-hidden="true">
+        <div class="hs-bar"></div>
+        <span class="hs-txt">Scrollen</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="div" aria-hidden="true"><div class="div-l"></div><div class="div-d"></div><div class="div-l"></div></div>
+
+<!-- 01 LANDSCHAFT -->
+<section id="landschaft" class="section" data-bg="#030f06" data-accent="#4ade80" aria-label="Landschaft">
+  <div class="ghost" aria-hidden="true">01</div>
+  <div class="sec-hdr">
+    <div>
+      <span class="sec-lbl">01 — Landschaft</span>
+      <h2 class="sec-h2"><span class="stl">Land-</span><span class="stl l2">schaft</span></h2>
+      <div class="sec-badge"><span class="sec-badge-dot"></span>16 Aufnahmen</div>
+    </div>
+    <p class="sec-desc fi">Von verspiegelten Bergseen bis zu mystischen Nebelwäldern und goldenen Sonnenuntergängen über den Alpen.</p>
+  </div>
+
+  <div class="ls-main">
+    <div class="card fi" tabindex="0" role="button" aria-label="Bergsee Reflexion vergrössern">
+      <img src="images/A7_06806.jpg" alt="Spiegelung der Alpen im Seealpsee, Appenzell" loading="lazy" width="900" height="1350">
+      <div class="cap">Seealpsee · Appenzell</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Sonnenaufgang Madeira vergrössern">
+      <img src="images/_DSC0828.jpg" alt="Sonnenaufgang über dem Wolkenmeer, Madeira" loading="lazy" width="900" height="600">
+      <div class="cap">Sonnenaufgang · Madeira</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Seilbahn Alpen vergrössern">
+      <img src="images/A7_06695.jpg" alt="Rote Seilbahn vor Alpengipfeln" loading="lazy" width="900" height="600">
+      <div class="cap">Seilbahn · Alpen</div>
+    </div>
+  </div>
+
+  <div class="ls-r1">
+    <div class="card fi" tabindex="0" role="button" aria-label="Schneetannen vergrössern">
+      <img src="images/_A7_2126.jpg" alt="Verschneite Tannen unter blauem Winterhimmel" loading="lazy" width="600" height="400">
+      <div class="cap">Schneetannen</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Wintersonnenuntergang vergrössern">
+      <img src="images/_A7_2181.jpg" alt="Goldener Sonnenuntergang über schneebedeckten Berggipfeln mit Morgennebel" loading="lazy" width="600" height="400">
+      <div class="cap">Winterabend · Alpen</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Alpengipfel Sonnenuntergang vergrössern">
+      <img src="images/_A7_2246.jpg" alt="Verschneite Berghütte bei Sonnenuntergang mit gefrorenem Kreuz im Vordergrund" loading="lazy" width="600" height="400">
+      <div class="cap">Gipfelkreuz · Alpen</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Nebelbaum vergrössern">
+      <img src="images/_DSC0637.jpg" alt="Einzelner Baum im dichten Nebel, Madeira" loading="lazy" width="600" height="400">
+      <div class="cap">Nebelwald · Madeira</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Bergsee türkis vergrössern">
+      <img src="images/_DSC8676.jpg" alt="Türkisfarbener Bergsee mit Felsen" loading="lazy" width="600" height="400">
+      <div class="cap">Bergsee · Wallis</div>
+    </div>
+  </div>
+
+  <div class="ls-r2">
+    <div class="card fi" tabindex="0" role="button" aria-label="Schneewald vergrössern">
+      <img src="images/_A7_0580.jpg" alt="Verschneite Alpenlandschaft mit Kiefern" loading="lazy" width="600" height="400">
+      <div class="cap">Winterwald</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Schneehütte vergrössern">
+      <img src="images/_A7_0662.jpg" alt="Einsame Hütte in weitem Schneefeld" loading="lazy" width="600" height="400">
+      <div class="cap">Einsamkeit · Schnee</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Nebelberge vergrössern">
+      <img src="images/_DSC0957.jpg" alt="Schmaler Bergpfad durch Felsen im Nebel, Madeira" loading="lazy" width="600" height="400">
+      <div class="cap">Bergpfad · Madeira</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Baum auf Felsen vergrössern">
+      <img src="images/_DSC3572.jpg" alt="Einsamer Baum auf Felsspitze vor blauem Himmel" loading="lazy" width="600" height="400">
+      <div class="cap">Einsamer Baum</div>
+    </div>
+  </div>
+
+  <div class="ls-r3">
+    <div class="card fi" tabindex="0" role="button" aria-label="Wolkenmeer Sonnenuntergang vergrössern">
+      <img src="images/_A7_2234.jpg" alt="Sonnenuntergang über einem goldenen Wolkenmeer mit Schneefeld und Tannen" loading="lazy" width="900" height="600">
+      <div class="cap">Wolkenmeer · Sonnenuntergang</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Schneepanorama vergrössern">
+      <img src="images/_A7_0668.jpg" alt="Weites Schneepanorama mit Alpengipfeln und strahlend blauem Himmel" loading="lazy" width="900" height="600">
+      <div class="cap">Winterpanorama · Alpen</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Bucht mit Segelboot vergrössern">
+      <img src="images/_DSC0368.jpg" alt="Stille Bucht mit einsamen Segelboot von oben, Madeira" loading="lazy" width="900" height="600">
+      <div class="cap">Bucht · Madeira</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Küstenklippen vergrössern">
+      <img src="images/_DSC0357.jpg" alt="Dramatische Küstenklippen im goldenen Gegenlicht, Madeira" loading="lazy" width="900" height="600">
+      <div class="cap">Klippen · Atlantik</div>
+    </div>
+  </div>
+</section>
+
+<div class="div" aria-hidden="true"><div class="div-l"></div><div class="div-d"></div><div class="div-l"></div></div>
+
+<!-- 02 KONZERTE -->
+<section id="konzerte" class="section" data-bg="#07021a" data-accent="#a855f7" aria-label="Konzerte und Events">
+  <div class="ghost" aria-hidden="true">02</div>
+  <div class="sec-hdr">
+    <div>
+      <span class="sec-lbl">02 — Konzerte</span>
+      <h2 class="sec-h2"><span class="stl">Kon-</span><span class="stl l2">zerte</span></h2>
+      <div class="sec-badge"><span class="sec-badge-dot"></span>8 Aufnahmen</div>
+    </div>
+    <p class="sec-desc fi">Energie, Emotion und Licht — die Magie einer Live-Performance eingefangen im entscheidenden Bruchteil einer Sekunde.</p>
+  </div>
+
+  <div class="kz-stage">
+    <div class="card fi" tabindex="0" role="button" aria-label="Theater Bühnenfoto vergrössern">
+      <img src="images/A7_00019.jpg" alt="Musiker auf Theaterbühne mit warmem dramatischen Licht" loading="lazy" width="700" height="1050">
+      <div class="cap">Theater · Bühne</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Konzertsilhouette vergrössern">
+      <img src="images/A7_00207.jpg" alt="Zwei Musiker als Silhouetten vor violettem Bühnenlicht und Rauch" loading="lazy" width="700" height="1050">
+      <div class="cap">Live Concert</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="DJ Konzert vergrössern">
+      <img src="images/A7_00352.jpg" alt="DJ auf Bühne mit intensiven blauen Strahlern" loading="lazy" width="700" height="1050">
+      <div class="cap">DJ Set</div>
+    </div>
+  </div>
+
+  <div class="kz-sub">
+    <div class="card fi" tabindex="0" role="button" aria-label="Konzertlichter vergrössern">
+      <img src="images/A7_08088.jpg" alt="Verwischte Lichtstrahlen und Bewegungsunschärfe auf der Bühne" loading="lazy" width="700" height="500">
+      <div class="cap">Lichtspiel</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Sänger auf Bühne vergrössern">
+      <img src="images/A7_09796.jpg" alt="Sänger mit Mikrofon vor Rauch und dunkler Bühne" loading="lazy" width="700" height="500">
+      <div class="cap">Live · Sänger</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Bühnenshow vergrössern">
+      <img src="images/_A7_1219.jpg" alt="Sänger auf bunter Konzertbühne mit Vorhang und Scheinwerfern" loading="lazy" width="700" height="500">
+      <div class="cap">Bühnenshow</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Konzert Strahler vergrössern">
+      <img src="images/_A7_1240.jpg" alt="Sänger auf Bühne mit blauen und gelben Strahlern und Bühnenkonstruktion" loading="lazy" width="700" height="500">
+      <div class="cap">Stage Lights</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Rapper auf Bühne vergrössern">
+      <img src="images/_A7_1361.jpg" alt="Rapper auf Bühne streckt Arm aus, Publikum filmt mit Smartphones" loading="lazy" width="700" height="500">
+      <div class="cap">Live Rap · Crowd</div>
+    </div>
+  </div>
+</section>
+
+<div class="div" aria-hidden="true"><div class="div-l"></div><div class="div-d"></div><div class="div-l"></div></div>
+
+<!-- 03 SPORT -->
+<section id="sport" class="section" data-bg="#110500" data-accent="#f97316" aria-label="Sport und Abenteuer">
+  <div class="ghost" aria-hidden="true">03</div>
+  <div class="sec-hdr">
+    <div>
+      <span class="sec-lbl">03 — Sport &amp; Abenteuer</span>
+      <h2 class="sec-h2"><span class="stl">Sport &amp;</span><span class="stl l2">Abenteuer</span></h2>
+      <div class="sec-badge"><span class="sec-badge-dot"></span>14 Aufnahmen</div>
+    </div>
+    <p class="sec-desc fi">Grenzen sprengen, Gipfel bezwingen — der menschliche Wille im Moment der grössten Anstrengung.</p>
+  </div>
+
+  <div class="sp-col fi">
+    <div class="spc" tabindex="0" role="button" aria-label="Klettern Felswand vergrössern">
+      <img src="images/_A7_2649.jpg" alt="Kletterer an senkrechter Felswand mit Seil" loading="lazy" width="700" height="900">
+    </div>
+    <div class="spc" tabindex="0" role="button" aria-label="Snowboard vergrössern">
+      <img src="images/_A7_2033.jpg" alt="Snowboarder mit Brett auf dem Rücken steigt durch Tiefschnee auf" loading="lazy" width="700" height="900">
+    </div>
+    <div class="spc" tabindex="0" role="button" aria-label="Kletterausrüstung vergrössern">
+      <img src="images/_DSC1394.jpg" alt="Karabiner und Sicherungsgeräte am Klettergurt" loading="lazy" width="600" height="900">
+    </div>
+    <div class="spc" tabindex="0" role="button" aria-label="Wanderweg vergrössern">
+      <img src="images/_DSC3041.jpg" alt="Alpiner Wanderweg mit rotem Markierungsstein" loading="lazy" width="700" height="500">
+    </div>
+    <div class="spc" tabindex="0" role="button" aria-label="Bergabenteuer vergrössern">
+      <img src="images/_A7_2596.jpg" alt="Person schaut im Gegenlicht auf Berggipfel" loading="lazy" width="700" height="900">
+    </div>
+  </div>
+
+  <div class="sp-sub">
+    <div class="card fi" tabindex="0" role="button" aria-label="Kletterer mit Helm vergrössern">
+      <img src="images/_A7_2411.jpg" alt="Kletterer mit orangem Helm hält Seil vor Felswand" loading="lazy" width="600" height="400">
+      <div class="cap">Klettern · Sichern</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Kletterer Fels vergrössern">
+      <img src="images/_A7_2669.jpg" alt="Kletterer greift nach Felskante mit gelber Hose" loading="lazy" width="600" height="400">
+      <div class="cap">Freiklettern</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Hand am Fels vergrössern">
+      <img src="images/_DSC1548.jpg" alt="Klettererhand mit Magnesium greift in Felsspalte" loading="lazy" width="600" height="400">
+      <div class="cap">Grip · Detail</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Wanderer Schnee vergrössern">
+      <img src="images/_DSC3132.jpg" alt="Zwei Wanderer steigen einen verschneiten Hang hinauf" loading="lazy" width="600" height="400">
+      <div class="cap">Schneewanderung</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Kletterer Felswand vergrössern">
+      <img src="images/_DSC1578.jpg" alt="Kletterer in gelber Jacke greift nach oben an steiler Felswand" loading="lazy" width="600" height="400">
+      <div class="cap">Klettern · North Face</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Hand an Fels vergrössern">
+      <img src="images/_DSC1556.jpg" alt="Fingerspitzen greifen in feinste Felsspalte — Nahaufnahme" loading="lazy" width="600" height="400">
+      <div class="cap">Fingertechnik · Crimp</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Magnesium Chalk vergrössern">
+      <img src="images/_DSC1769.jpg" alt="Kletterer greift in Magnesiumbeutel, weisser Staub in der Luft" loading="lazy" width="600" height="400">
+      <div class="cap">Chalk · Detail</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Sichern mit Seil vergrössern">
+      <img src="images/_DSC1748.jpg" alt="Person sichert mit Seil an Felswand, dynamisches Seil im Wind" loading="lazy" width="600" height="400">
+      <div class="cap">Seilsicherung</div>
+    </div>
+  </div>
+</section>
+
+<div class="div" aria-hidden="true"><div class="div-l"></div><div class="div-d"></div><div class="div-l"></div></div>
+
+<!-- 04 MOTORSPORT -->
+<section id="motorsport" class="section" data-bg="#0f0000" data-accent="#ef4444" aria-label="Motorsport">
+  <div class="ghost" aria-hidden="true">04</div>
+  <div class="sec-hdr">
+    <div>
+      <span class="sec-lbl">04 — Motorsport</span>
+      <h2 class="sec-h2"><span class="stl">Motor-</span><span class="stl l2">sport</span></h2>
+      <div class="sec-badge"><span class="sec-badge-dot"></span>7 Aufnahmen</div>
+    </div>
+    <p class="sec-desc fi">Panning-Technik trifft auf Präzision — Geschwindigkeit sichtbar gemacht in einem einzigen Bild.</p>
+  </div>
+
+  <div class="ms-strip fi" aria-label="Motorsport Bilder">
+    <div class="ms-inner" id="msinner">
+      <div class="card" tabindex="0" role="button" aria-label="Ferrari F1 vergrössern">
+        <img src="images/_DSC5654.jpg" alt="Ferrari Formel-1-Auto in voller Fahrt mit Panning-Technik" loading="lazy" width="1200" height="600">
+        <div class="cap">Ferrari F1 · Austria GP</div>
+      </div>
+      <div class="card" tabindex="0" role="button" aria-label="Red Bull F1 vergrössern">
+        <img src="images/_DSC5710.jpg" alt="Red Bull Racing Formel-1-Auto mit Panning-Unschärfe" loading="lazy" width="1200" height="600">
+        <div class="cap">Red Bull · F1</div>
+      </div>
+      <div class="card" tabindex="0" role="button" aria-label="Porsche GT3 vergrössern">
+        <img src="images/_DSC6074.jpg" alt="Blauer Porsche 911 GT3 Cup in der Kurve mit Panning" loading="lazy" width="1200" height="600">
+        <div class="cap">Porsche 911 GT3</div>
+      </div>
+      <div class="card" tabindex="0" role="button" aria-label="BMW M3 Rennsport vergrössern">
+        <img src="images/_DSC5289.jpg" alt="Oranger BMW M3 Rennsportwagen mit Jägermeister-Sponsoring" loading="lazy" width="900" height="600">
+        <div class="cap">BMW M3 · Rennsport</div>
+      </div>
+      <div class="card" tabindex="0" role="button" aria-label="VW Golf Rennsport vergrössern">
+        <img src="images/_DSC4957.jpg" alt="Weisser VW Golf Rennsportwagen im Fahrerlager" loading="lazy" width="900" height="600">
+        <div class="cap">VW Golf · Hillclimb</div>
+      </div>
+      <div class="card" tabindex="0" role="button" aria-label="VW Golf Wolf-Power vergrössern">
+        <img src="images/_DSC4958.jpg" alt="Weisser VW Golf Rennwagen mit Wolf-Power Livery im Zelt" loading="lazy" width="900" height="600">
+        <div class="cap">Wolf-Power · Pits</div>
+      </div>
+      <div class="card" tabindex="0" role="button" aria-label="Ferrari F1 Panning vergrössern">
+        <img src="images/_DSC5741.jpg" alt="Ferrari Formel-1-Auto mit Bewegungsunschärfe auf der Rennstrecke" loading="lazy" width="1200" height="600">
+        <div class="cap">Ferrari F1 · Speed</div>
+      </div>
+      <!-- loop duplicates -->
+      <div class="card" aria-hidden="true"><img src="images/_DSC5654.jpg" alt="" loading="lazy" width="1200" height="600"></div>
+      <div class="card" aria-hidden="true"><img src="images/_DSC5710.jpg" alt="" loading="lazy" width="1200" height="600"></div>
+      <div class="card" aria-hidden="true"><img src="images/_DSC6074.jpg" alt="" loading="lazy" width="1200" height="600"></div>
+      <div class="card" aria-hidden="true"><img src="images/_DSC5289.jpg" alt="" loading="lazy" width="900" height="600"></div>
+      <div class="card" aria-hidden="true"><img src="images/_DSC4957.jpg" alt="" loading="lazy" width="900" height="600"></div>
+      <div class="card" aria-hidden="true"><img src="images/_DSC4958.jpg" alt="" loading="lazy" width="900" height="600"></div>
+      <div class="card" aria-hidden="true"><img src="images/_DSC5741.jpg" alt="" loading="lazy" width="1200" height="600"></div>
+    </div>
+  </div>
+</section>
+
+<div class="div" aria-hidden="true"><div class="div-l"></div><div class="div-d"></div><div class="div-l"></div></div>
+
+<!-- 05 WILDLIFE -->
+<section id="wildlife" class="section" data-bg="#090700" data-accent="#d97706" aria-label="Wildlife Tierfotografie">
+  <div class="ghost" aria-hidden="true">05</div>
+  <div class="sec-hdr">
+    <div>
+      <span class="sec-lbl">05 — Wildlife</span>
+      <h2 class="sec-h2"><span class="stl">Wild-</span><span class="stl l2">life</span></h2>
+      <div class="sec-badge"><span class="sec-badge-dot"></span>3 Aufnahmen</div>
+    </div>
+    <p class="sec-desc fi">Stille Begegnungen in freier Wildbahn — Momente, die nur einem geduldigen Beobachter gehören.</p>
+  </div>
+
+  <div class="wl-grid">
+    <div class="card fi" tabindex="0" role="button" aria-label="Reh vergrössern">
+      <img src="images/_A7_1033.jpg" alt="Junges Reh blickt direkt in die Kamera, im Hintergrund neblige Herbstlandschaft" loading="lazy" width="800" height="1200">
+      <div class="cap">Rehkitz · Herbst</div>
+    </div>
+    <div class="wl-text fi">
+      <div class="wl-badge">Wildtiere</div>
+      <p class="wl-q">„In der Stille der Natur liegt eine Wahrheit, die keine Sprache der Welt ausdrücken kann."</p>
+      <div class="wl-rule"></div>
+      <p class="wl-body">Wildlife-Fotografie verlangt Geduld, Respekt und ein tiefes Verständnis für die Natur. Jedes Bild entsteht aus stundenlangem, lautlosem Warten.</p>
+      <p class="wl-body">Wenn das Licht stimmt und der entscheidende Moment kommt — dann drückt man ab. Dieser eine Augenblick rechtfertigt alles.</p>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 2fr;gap:5px;margin-top:5px">
+    <div class="card fi" tabindex="0" role="button" aria-label="Hirsch Portrait vergrössern" style="height:340px">
+      <img src="images/_A7_1061.jpg" alt="Hirsch mit imposantem Geweih schaut direkt in die Kamera, Bokeh Hintergrund" loading="lazy" width="700" height="1000">
+      <div class="cap">Hirsch · Portrait</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Nebelbaum mit Vogel vergrössern" style="height:340px">
+      <img src="images/_DSC0091.jpg" alt="Einsamer Baum mit Vogel im dichten Nebel, Madeira" loading="lazy" width="900" height="600">
+      <div class="cap">Nebelbaum · Madeira</div>
+    </div>
+  </div>
+</section>
+
+<div class="div" aria-hidden="true"><div class="div-l"></div><div class="div-d"></div><div class="div-l"></div></div>
+
+<!-- 06 ARCHITEKTUR -->
+<section id="architektur" class="section" data-bg="#0c0b00" data-accent="#eab308" aria-label="Architektur und Reise">
+  <div class="ghost" aria-hidden="true">06</div>
+  <div class="sec-hdr">
+    <div>
+      <span class="sec-lbl">06 — Architektur &amp; Reise</span>
+      <h2 class="sec-h2"><span class="stl">Archi-</span><span class="stl l2">tektur</span></h2>
+      <div class="sec-badge"><span class="sec-badge-dot"></span>5 Aufnahmen</div>
+    </div>
+    <p class="sec-desc fi">Orte, die Geschichten erzählen — Kulturen, Gärten und Strassen neu entdeckt durch mein Objektiv.</p>
+  </div>
+
+  <div class="ar-grid">
+    <div class="card fi" tabindex="0" role="button" aria-label="Monte Palace Garten vergrössern">
+      <img src="images/_DSC9756.jpg" alt="Roter Holzbrücke im japanischen Garten des Monte Palace, Madeira" loading="lazy" width="900" height="600">
+      <div class="cap">Monte Palace · Madeira</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Traditionelles Haus Madeira vergrössern">
+      <img src="images/_DSC0467.jpg" alt="Traditionelles dreieckiges Strohdachhaus mit roter Tür in Santana, Madeira" loading="lazy" width="700" height="900">
+      <div class="cap">Santana · Madeira</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Wanderer Sonnenuntergang vergrössern">
+      <img src="images/_DSC0733.jpg" alt="Wanderer als Silhouette vor Sonnenuntergang über Wolkenmeer, Madeira" loading="lazy" width="900" height="600">
+      <div class="cap">Pico Ruivo · Madeira</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Gasse Lugano vergrössern">
+      <img src="images/_A7_3338.jpg" alt="Schmale Altstadtgasse in Lugano mit gelben Fassaden und Balkonen" loading="lazy" width="700" height="900">
+      <div class="cap">Altstadt · Lugano</div>
+    </div>
+    <div class="card fi" tabindex="0" role="button" aria-label="Japanischer Teich vergrössern">
+      <img src="images/_DSC9870.jpg" alt="Japanischer Teich mit roter Brücke und Koi-Karpfen im Monte Palace, Madeira" loading="lazy" width="1200" height="600">
+      <div class="cap">Koi-Teich · Monte Palace</div>
+    </div>
+  </div>
+</section>
+
+<div class="div" aria-hidden="true"><div class="div-l"></div><div class="div-d"></div><div class="div-l"></div></div>
+
+<!-- KONTAKT -->
+<section id="contact" class="section" data-bg="#0a0a0a" aria-label="Kontakt">
+  <div class="ct-wrap">
+    <div class="fi">
+      <span class="ct-eye">07 — Kontakt</span>
+      <h2 class="ct-h2">Lass uns<br>zusammen-<br>arbeiten</h2>
+      <p class="ct-p">Hast du ein Projekt? Ob Konzert, Portrait, Landschaft oder Motorsport — ich antworte innerhalb von 48 Stunden.</p>
+      <p class="ct-p"><a href="mailto:livioraschle@gmail.com" class="ct-mail" aria-label="E-Mail senden">livioraschle@gmail.com</a></p>
+      <nav class="ct-soc" aria-label="Social Media">
+        <a href="#" class="ct-s" aria-label="Instagram">Instagram</a>
+        <a href="#" class="ct-s" aria-label="Behance">Behance</a>
+        <a href="#" class="ct-s" aria-label="LinkedIn">LinkedIn</a>
+      </nav>
+    </div>
+    <form id="cform" class="fi" novalidate aria-label="Kontaktformular">
+      <div class="fg">
+        <label for="fn">Name</label>
+        <input id="fn" name="name" type="text" autocomplete="name" placeholder="…Dein Name" required aria-required="true">
+      </div>
+      <div class="fg">
+        <label for="fe">E-Mail</label>
+        <input id="fe" name="email" type="email" autocomplete="email" spellcheck="false" placeholder="…deine@email.com" required aria-required="true">
+      </div>
+      <div class="fg">
+        <label for="fc">Kategorie</label>
+        <select id="fc" name="category">
+          <option value="">— Auswählen</option>
+          <option>Konzert / Event</option>
+          <option>Landschaft / Natur</option>
+          <option>Sport / Abenteuer</option>
+          <option>Motorsport</option>
+          <option>Portrait / People</option>
+          <option>Sonstiges</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label for="fm">Nachricht</label>
+        <textarea id="fm" name="message" placeholder="…Erzähl mir von deinem Projekt" aria-label="Nachricht"></textarea>
+      </div>
+      <div id="ferr" role="alert" aria-live="polite"></div>
+      <button type="submit" class="sbtn" id="sbtn" aria-label="Formular absenden">Anfrage senden</button>
+    </form>
+  </div>
+</section>
+
+<footer>
+  <span translate="no">© 2026 Livio Raschle Photography</span>
+  <div style="display:flex;gap:2rem;align-items:center">
+    <span style="opacity:.35">Schweiz</span>
+    <a href="mailto:livioraschle@gmail.com" style="color:var(--muted);text-decoration:none;font-size:.58rem;letter-spacing:.22em;text-transform:uppercase;transition:color .3s" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='var(--muted)'">livioraschle@gmail.com</a>
+  </div>
+</footer>
+
+<script>
+/* LOADER */
+window.addEventListener('load',()=>setTimeout(()=>document.getElementById('loader').classList.add('out'),800));
+
+/* CURSOR */
+const cdot=document.getElementById('cdot'),cring=document.getElementById('cring');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cdot.style.left=mx+'px';cdot.style.top=my+'px'});
+(function loop(){rx+=(mx-rx)*.11;ry+=(my-ry)*.11;cring.style.left=rx+'px';cring.style.top=ry+'px';requestAnimationFrame(loop)})();
+document.querySelectorAll('.card,.spc').forEach(el=>{el.addEventListener('mouseenter',()=>document.body.classList.add('chover'));el.addEventListener('mouseleave',()=>document.body.classList.remove('chover'))});
+document.querySelectorAll('a,button').forEach(el=>{el.addEventListener('mouseenter',()=>document.body.classList.add('clink'));el.addEventListener('mouseleave',()=>document.body.classList.remove('clink'))});
+
+/* PARALLAX */
+const himg=document.getElementById('hero-img');
+window.addEventListener('scroll',()=>{if(himg)himg.style.transform=`translateY(${scrollY*.35}px)`;updateProg()},{passive:true});
+
+/* PROGRESS */
+const pf=document.getElementById('pfill');
+function updateProg(){pf.style.height=(scrollY/(document.documentElement.scrollHeight-innerHeight)*100)+'%'}
+
+/* MENU */
+const mbtn=document.getElementById('mbtn'),mov=document.getElementById('moverlay');
+let mopen=false;
+function toggleMenu(){
+  mopen=!mopen;mbtn.classList.toggle('open',mopen);mov.classList.toggle('open',mopen);
+  mbtn.setAttribute('aria-expanded',mopen);
+  mbtn.setAttribute('aria-label',mopen?'Menü schliessen':'Menü öffnen');
+  document.body.style.overflow=mopen?'hidden':'';
+}
+mbtn.addEventListener('click',toggleMenu);
+mov.querySelectorAll('.mlink').forEach(a=>a.addEventListener('click',()=>{if(mopen)toggleMenu()}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&mopen)toggleMenu()});
+
+/* BG MORPH */
+const bgel=document.getElementById('bg');
+new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(!e.isIntersecting)return;
+    bgel.style.background=e.target.dataset.bg||'#0a0a0a';
+    pf.style.background=e.target.dataset.accent||'#c8965a';
+  });
+},{threshold:.35}).observe.call(new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(!e.isIntersecting)return;bgel.style.background=e.target.dataset.bg||'#0a0a0a';pf.style.background=e.target.dataset.accent||'#c8965a'});
+},{threshold:.35}),document.querySelectorAll('[data-bg]'));
+
+// fix: proper observer
+const bgObs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){bgel.style.background=e.target.dataset.bg||'#0a0a0a';pf.style.background=e.target.dataset.accent||'#c8965a'}})},{threshold:.35});
+document.querySelectorAll('[data-bg]').forEach(s=>bgObs.observe(s));
+new IntersectionObserver(e=>{if(e[0].isIntersecting){bgel.style.background='#0a0a0a';pf.style.background='#c8965a'}},{threshold:.4}).observe(document.getElementById('hero'));
+
+/* SECTION REVEAL */
+new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('vis')})},{threshold:.12}).observe.call(
+  new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('vis')})},{threshold:.12}),
+  document.querySelectorAll('.section')
+);
+const secObs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('vis')})},{threshold:.12});
+document.querySelectorAll('.section').forEach(s=>secObs.observe(s));
+
+/* FADE-IN */
+const fiObs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('vis');fiObs.unobserve(e.target)}})},{threshold:.05,rootMargin:'0px 0px -20px 0px'});
+document.querySelectorAll('.fi').forEach(el=>fiObs.observe(el));
+
+/* LIGHTBOX */
+const lb=document.getElementById('lb'),lbimg=document.getElementById('lbimg'),lbctr=document.getElementById('lbctr');
+let imgs=[],lidx=0;
+document.querySelectorAll('.card img,.spc img').forEach((img,i)=>{
+  if(!img.closest('[aria-hidden]')){imgs.push({src:img.src,alt:img.alt});const card=img.closest('.card,.spc');if(card){const open=()=>openLB(i-countHidden(card));card.addEventListener('click',open);card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}})}}
+});
+function countHidden(el){let c=0,all=document.querySelectorAll('.card img,.spc img');all.forEach(i=>{if(i.closest('[aria-hidden]')&&[...all].indexOf(i)<[...all].indexOf(el.querySelector('img')))c++});return c}
+
+// simpler approach
+imgs=[];
+document.querySelectorAll('.card:not([aria-hidden]) img,.spc:not([aria-hidden]) img').forEach((img,i)=>{
+  if(!img.closest('[aria-hidden="true"]')){
+    const idx=imgs.length;imgs.push({src:img.src,alt:img.alt});
+    const card=img.closest('.card,.spc');
+    if(card){card.addEventListener('click',()=>openLB(idx));card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openLB(idx)}})}
+  }
+});
+function openLB(i){lidx=i;lbimg.src=imgs[i].src;lbimg.alt=imgs[i].alt;lb.classList.add('open');document.body.style.overflow='hidden';updLB();document.getElementById('lbx').focus()}
+function closeLB(){lb.classList.remove('open');document.body.style.overflow=''}
+function prevImg(){lidx=(lidx-1+imgs.length)%imgs.length;lbimg.src=imgs[lidx].src;lbimg.alt=imgs[lidx].alt;updLB()}
+function nextImg(){lidx=(lidx+1)%imgs.length;lbimg.src=imgs[lidx].src;lbimg.alt=imgs[lidx].alt;updLB()}
+function updLB(){lbctr.textContent=(lidx+1)+' / '+imgs.length}
+document.getElementById('lbx').addEventListener('click',closeLB);
+document.getElementById('lbprev').addEventListener('click',prevImg);
+document.getElementById('lbnext').addEventListener('click',nextImg);
+lb.addEventListener('click',e=>{if(e.target===lb)closeLB()});
+document.addEventListener('keydown',e=>{if(!lb.classList.contains('open'))return;if(e.key==='Escape')closeLB();if(e.key==='ArrowLeft')prevImg();if(e.key==='ArrowRight')nextImg()});
+
+/* DOT NAV */
+const dnItems=document.querySelectorAll('.dn-item');
+const dnSections=['hero','landschaft','konzerte','sport','motorsport','wildlife','architektur','contact'];
+const dnObs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      const id=e.target.id;
+      dnItems.forEach(a=>{
+        a.classList.toggle('act',a.dataset.target===id);
+      });
+    }
+  });
+},{threshold:.35});
+dnSections.forEach(id=>{const el=document.getElementById(id);if(el)dnObs.observe(el)});
+
+/* FORM */
+const cform=document.getElementById('cform'),ferr=document.getElementById('ferr'),sbtn=document.getElementById('sbtn');
+cform.addEventListener('submit',e=>{
+  e.preventDefault();
+  const name=document.getElementById('fn').value.trim(),email=document.getElementById('fe').value.trim();
+  ferr.style.display='none';
+  if(!name){ferr.textContent='Bitte gib deinen Namen ein.';ferr.style.display='block';document.getElementById('fn').focus();return}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ferr.textContent='Bitte gib eine gültige E-Mail-Adresse ein.';ferr.style.display='block';document.getElementById('fe').focus();return}
+  sbtn.disabled=true;sbtn.textContent='Wird gesendet…';
+  setTimeout(()=>{sbtn.classList.add('sent');sbtn.textContent='Gesendet ✓';cform.reset();setTimeout(()=>{sbtn.classList.remove('sent');sbtn.textContent='Anfrage senden';sbtn.disabled=false},4000)},1200);
+});
+</script>
+</body>
+</html>
