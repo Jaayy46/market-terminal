@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#080808">
+<meta name="color-scheme" content="dark">
+<title>Market Terminal — Livio Raschle</title>
+<!-- Critical inline CSS: loader visible instantly, no external CSS required -->
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#080808;color:#e8eaf0;font-family:system-ui,-apple-system,sans-serif;height:100%}
+#loader{position:fixed;inset:0;background:#080808;z-index:9990;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:.8rem;transition:opacity .8s ease,visibility .8s}
+#loader.out{opacity:0;visibility:hidden;pointer-events:none}
+.ld-title{font-size:clamp(1rem,3vw,1.5rem);font-weight:300;letter-spacing:.3em;text-transform:uppercase;color:#e8eaf0;opacity:0;animation:ldFade .5s ease .1s forwards}
+.ld-sub{font-size:.7rem;letter-spacing:.2em;color:#6b7280;text-transform:uppercase;opacity:0;animation:ldFade .4s ease .3s forwards}
+.ld-bar{width:0;height:1px;background:#00ff88;animation:ldBar .7s ease .5s forwards}
+@media(hover:none){#cdot,#cring{display:none}}
+@keyframes ldFade{to{opacity:1}}
+@keyframes ldBar{to{width:200px}}
+</style>
+<!-- Fonts: async, non-blocking -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"></noscript>
+<!-- Main CSS: non-critical, loads in parallel -->
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- CURSOR -->
+<div id="cdot"></div>
+<div id="cring"></div>
+<!-- LOADER -->
+<div id="loader">
+  <div class="ld-title">Market Terminal</div>
+  <div class="ld-sub">Lade Marktdaten…</div>
+  <div class="ld-bar"></div>
+</div>
+<script>if('ontouchstart' in window||navigator.maxTouchPoints>0){var l=document.getElementById('loader');l.style.display='none';}</script>
+<!-- TOASTS -->
+<div id="toasts"></div>
+<!-- MODAL -->
+<div id="modal-overlay">
+  <div class="modal-card" id="modal-card"><!-- dynamisch --></div>
+</div>
+<!-- HEADER -->
+<header id="hdr">
+  <div id="logo">
+    <div class="logo-mark"><svg viewBox="0 0 12 12"><polyline points="1,9 4,5 7,7 11,2" stroke="#00ff88" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <span class="logo-text">Market Terminal</span>
+  </div>
+  <div id="ticker-wrap"><div id="ticker-inner"></div></div>
+  <div id="hdr-right">
+    <div id="clocks">
+      <div class="clock-item"><span class="clock-time" id="clock-zh">--:--:--</span><span class="clock-tz">ZH</span></div>
+      <div class="clock-item"><span class="clock-time" id="clock-ny">--:--:--</span><span class="clock-tz">NY</span></div>
+    </div>
+    <div class="mkt-badges" id="mkt-badges"></div>
+    <div class="live-dot"></div>
+    <button id="refresh-btn" title="Daten aktualisieren">
+      <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 4s1-3 7-3a7 7 0 1 1-6.9 7.5"/><polyline points="1,1 1,4 4,4"/></svg>
+      Aktualisieren
+    </button>
+  </div>
+</header>
+<!-- TAB NAV -->
+<nav id="tab-nav">
+  <button class="tab-btn active" data-tab="overview">Übersicht</button>
+  <button class="tab-btn" data-tab="watchlist">Watchlist</button>
+  <button class="tab-btn" data-tab="signals">Signale</button>
+  <button class="tab-btn" data-tab="portfolio">Portfolio</button>
+  <button class="tab-btn" data-tab="alerts">Alerts <span class="tab-badge" id="alerts-badge" style="display:none">0</span></button>
+  <button class="tab-btn" data-tab="news">Nachrichten</button>
+  <button class="tab-btn" data-tab="analyse">Analyse</button>
+</nav>
+<!-- CONTENT -->
+<main id="content">
+  <section id="tab-overview" class="tab-panel active">
+    <div class="kpi-grid" id="kpi-grid"></div>
+    <div class="overview-lower">
+      <div id="heatmap-card" class="card">
+        <div class="sec-hdr"><span class="sec-title">Markt-Heatmap</span><span id="heatmap-subtitle" class="text-muted" style="font-size:.6rem"></span></div>
+        <div class="heatmap-grid" id="heatmap-grid"></div>
+      </div>
+      <div id="sentiment-card">
+        <div class="sec-title" style="margin-bottom:.75rem">Markt-Stimmung</div>
+        <svg id="gauge-svg" viewBox="0 0 200 110">
+          <path class="gauge-track" d="M 20 100 A 80 80 0 0 1 180 100"/>
+          <path class="gauge-fill" id="gauge-fill" d="M 20 100 A 80 80 0 0 1 20 100" stroke="var(--muted)"/>
+        </svg>
+        <div class="gauge-labels"><span>Angst</span><span>Neutral</span><span>Gier</span></div>
+        <div id="gauge-score-wrap"><div id="gauge-score">--</div></div>
+        <div id="gauge-label">Lädt…</div>
+        <div class="gauge-factors">
+          <div class="gf-item"><span class="gf-lbl">52W Ø</span><span class="gf-val" id="gf-52w">—</span></div>
+          <div class="gf-item"><span class="gf-lbl">Tagesrendite</span><span class="gf-val" id="gf-day">—</span></div>
+          <div class="gf-item"><span class="gf-lbl">S&amp;P Position</span><span class="gf-val" id="gf-sp">—</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="overview-bottom-row">
+      <div class="card">
+        <div class="sec-hdr"><span class="sec-title">Globale Indizes</span></div>
+        <table class="idx-table" id="idx-table">
+          <thead><tr><th>Index</th><th>Kurs</th><th>Veränd.</th><th>Tag %</th><th>52W Tief</th><th>52W Hoch</th></tr></thead>
+          <tbody id="idx-tbody"></tbody>
+        </table>
+      </div>
+      <!-- Market Pulse -->
+      <div class="card">
+        <div class="sec-hdr">
+          <span class="sec-title">Market Pulse — Heutige Treiber</span>
+          <span id="pulse-count" style="font-size:.6rem;color:var(--muted)"></span>
+        </div>
+        <div class="pulse-list" id="pulse-list">
+          <div style="color:var(--muted);font-size:.75rem;padding:.75rem 0">Nachrichten werden geladen…</div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section id="tab-watchlist" class="tab-panel">
+    <div class="wl-controls">
+      <div class="filter-chips" id="wl-filters">
+        <button class="chip active" data-filter="ALL">Alle</button>
+        <button class="chip" data-filter="stock">Aktien</button>
+        <button class="chip" data-filter="crypto">Crypto</button>
+        <button class="chip" data-filter="etf">ETF</button>
+      </div>
+      <select class="sort-select" id="wl-sort">
+        <option value="default">Standard</option>
+        <option value="change">Veränd. %</option>
+        <option value="signal">Signal</option>
+        <option value="w52">52W-Position</option>
+      </select>
+    </div>
+    <div class="wl-grid" id="wl-grid"></div>
+  </section>
+  <section id="tab-signals" class="tab-panel">
+    <div class="signals-toolbar">
+      <span class="sec-title">Technische Signale</span>
+      <div class="sec-actions">
+        <button class="btn" id="export-csv-btn">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 10v3H3v-3M8 3v7M5 7l3 3 3-3"/></svg>
+          CSV Export
+        </button>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table class="data-table" id="signals-table">
+        <thead><tr id="signals-thead"></tr></thead>
+        <tbody id="signals-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+  <section id="tab-portfolio" class="tab-panel">
+    <!-- SAXO BANK CONNECTION BAR -->
+    <div id="saxo-bar"></div>
+    <!-- SAXO SETUP HINT -->
+    <div id="saxo-setup-hint" class="hidden">
+      <strong>Saxo Bank Developer App einrichten:</strong><br>
+      1. Gehe zu <a href="https://developer.saxobank.com" target="_blank">developer.saxobank.com</a> → Apps → Create App<br>
+      2. Setze <strong>Grant Type</strong> = Authorization Code + PKCE<br>
+      3. Setze <strong>Redirect URI</strong> = <code id="saxo-redirect-uri" style="font-family:var(--mono);font-size:.7em;background:rgba(255,255,255,.06);padding:.1rem .3rem;border-radius:3px"></code><br>
+      4. Trage die <strong>Client ID</strong> unten ein und klicke "Verbinden"
+    </div>
+    <!-- ORDERS PANEL -->
+    <div id="orders-panel" class="hidden">
+      <div class="sec-hdr" style="margin-bottom:.75rem">
+        <span class="sec-title" style="font-size:.78rem">Order aufgeben</span>
+        <span id="order-instrument-label" style="font-size:.7rem;color:var(--muted)"></span>
+      </div>
+      <div class="orders-grid">
+        <div style="position:relative">
+          <div class="form-label">Instrument suchen</div>
+          <input type="text" class="form-input" id="order-search" placeholder="z.B. AAPL, Tesla…" autocomplete="off">
+          <div id="order-search-results" class="instrument-result hidden"></div>
+        </div>
+        <div>
+          <div class="form-label">Richtung</div>
+          <div class="order-side-btns">
+            <button class="order-side-btn active-buy" id="order-buy-btn">KAUFEN</button>
+            <button class="order-side-btn" id="order-sell-btn">VERKAUFEN</button>
+          </div>
+        </div>
+        <div>
+          <div class="form-label">Menge</div>
+          <input type="number" class="form-input" id="order-qty" placeholder="Anzahl" min="1" step="1" value="1">
+        </div>
+        <div>
+          <div class="form-label">Order-Typ</div>
+          <select class="form-input" id="order-type">
+            <option value="Market">Market</option>
+            <option value="Limit">Limit</option>
+            <option value="StopIfTraded">Stop</option>
+          </select>
+        </div>
+        <div id="order-limit-wrap" class="hidden">
+          <div class="form-label">Limit-Preis</div>
+          <input type="number" class="form-input" id="order-limit-price" placeholder="Preis" step="0.01">
+        </div>
+        <button class="btn btn-green" id="order-submit-btn" style="align-self:end;white-space:nowrap">Order senden</button>
+      </div>
+    </div>
+    <!-- MANUAL PORTFOLIO -->
+    <div class="sec-hdr">
+      <span class="sec-title" id="portfolio-section-title">Mein Portfolio</span>
+      <button class="btn btn-green" id="add-position-btn">+ Position</button>
+    </div>
+    <div class="port-summary" id="port-summary"></div>
+    <div class="port-lower">
+      <div class="tbl-wrap">
+        <table class="data-table" id="port-table">
+          <thead><tr><th>Titel</th><th>Anzahl</th><th>Kaufkurs</th><th>Aktuell</th><th>Unreal. %</th><th>Unreal. Wert</th><th>Tagesgew.</th><th></th></tr></thead>
+          <tbody id="port-tbody"></tbody>
+        </table>
+      </div>
+      <div class="card donut-wrap">
+        <div class="sec-title" style="margin-bottom:.75rem">Allokation</div>
+        <canvas id="donut-chart" width="200" height="200"></canvas>
+        <div class="donut-legend" id="donut-legend"></div>
+      </div>
+    </div>
+  </section>
+  <section id="tab-alerts" class="tab-panel">
+    <div id="notif-prompt">
+      <span class="notif-prompt-text">🔔 Browser-Benachrichtigungen aktivieren für Preis-Alerts?</span>
+      <div style="display:flex;gap:.5rem">
+        <button class="btn btn-green" id="notif-allow-btn">Aktivieren</button>
+        <button class="btn" id="notif-dismiss-btn">Später</button>
+      </div>
+    </div>
+    <div class="alerts-hdr">
+      <span class="sec-title">Preis-Alerts</span>
+      <button class="btn btn-green" id="add-alert-btn">+ Neuer Alert</button>
+    </div>
+    <div class="alert-groups" id="alert-groups"></div>
+  </section>
+  <section id="tab-news" class="tab-panel">
+    <div class="news-filters" id="news-filters">
+      <button class="chip active" data-src="ALL">Alle</button>
+      <button class="chip" data-src="MarketWatch">MarketWatch</button>
+      <button class="chip" data-src="CNBC">CNBC</button>
+      <button class="chip" data-src="Bloomberg">Bloomberg</button>
+      <button class="chip" data-src="Reuters">Reuters</button>
+      <button class="chip" data-src="Yahoo Finance">Yahoo Finance</button>
+    </div>
+    <div class="news-grid" id="news-grid"></div>
+  </section>
+
+  <!-- ── TIEFENANALYSE ───────────────────────────────────────────── -->
+  <section id="tab-analyse" class="tab-panel">
+    <div class="analyse-top">
+      <span class="sec-title">Tiefenanalyse — Multi-Faktor</span>
+      <div class="analyse-chips" id="analyse-chips"></div>
+    </div>
+    <div id="analyse-content">
+      <div class="analyse-empty">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="4,36 16,22 24,28 36,12 44,18"/><line x1="4" y1="44" x2="44" y2="44"/></svg>
+        <p>Wähle einen Ticker für die Tiefenanalyse</p>
+      </div>
+    </div>
+  </section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
+<script src="main.js" defer></script>
+</body>
+</html>
